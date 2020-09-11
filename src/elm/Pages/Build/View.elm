@@ -46,6 +46,7 @@ import Html.Attributes
         )
 import Html.Events exposing (onClick)
 import Http exposing (Error(..))
+import Html.Lazy
 import Pages exposing (Page(..))
 import Pages.Build.Logs
     exposing
@@ -318,7 +319,7 @@ viewLogLines org repo buildNumber stepNumber logFocus maybeLog following shiftDo
                         div [ class "loading-logs" ] [ Util.smallLoaderWithText "loading logs..." ]
 
                     else
-                        viewLines org repo buildNumber stepNumber logFocus log shiftDown following
+                        Html.Lazy.lazy8 viewLines org repo buildNumber stepNumber logFocus log shiftDown following
     in
     div
         [ class "logs"
@@ -416,12 +417,15 @@ viewLines org repo buildNumber stepNumber logFocus log shiftDown following =
                 ++ [ bottomTracker ]
         ]
 
+
 logsTableStyle : Int -> Html.Attribute Msg
 logsTableStyle num =
-    if num > 10 then 
-        class  "-long"
+    if num > 10 then
+        class "-long"
+
     else
         class "-short"
+
 
 {-| viewLine : takes log line and focus information and renders line number button and log
 -}
