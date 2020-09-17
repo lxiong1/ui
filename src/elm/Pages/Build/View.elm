@@ -257,6 +257,10 @@ viewStepDetails now org repo buildNumber step logs follow shift =
         stepNumber =
             String.fromInt step.number
 
+        l =
+            toString <| getStepLog step logs
+        b =   button [ class "button", class "-link", onClick <| Base64Decode stepNumber l ] [ text "decode logs" ]
+
         stepSummary =
             [ summary
                 [ class "summary"
@@ -270,6 +274,7 @@ viewStepDetails now org repo buildNumber step logs follow shift =
                     , div [ class "-duration" ] [ text <| Util.formatRunTime now step.started step.finished ]
                     ]
                 , FeatherIcons.chevronDown |> FeatherIcons.withSize 20 |> FeatherIcons.withClass "details-icon-expand" |> FeatherIcons.toHtml []
+                , b
                 ]
             , div [ class "logs-container" ] [ viewLogs org repo buildNumber step logs follow shift ]
             ]

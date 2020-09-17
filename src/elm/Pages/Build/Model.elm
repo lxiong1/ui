@@ -52,6 +52,8 @@ type Msg
     | ExpandAllSteps Org Repo BuildNumber
     | CollapseAllSteps
     | FocusOn String
+    | Base64Decode String String
+    | OnBase64Decode (List String)
 
 
 type alias GetStepLogs a msg =

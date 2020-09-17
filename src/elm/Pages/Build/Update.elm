@@ -9,7 +9,10 @@ module Pages.Build.Update exposing (expandActiveStep, mergeSteps, update)
 import Browser.Dom as Dom
 import Browser.Navigation as Navigation
 import File.Download as Download
+import Interop
+import Json.Encode as Encode
 import List.Extra
+import String.Extra
 import Pages.Build.Logs exposing (focusStep, logFocusFragment)
 import Pages.Build.Model
     exposing
@@ -25,6 +28,7 @@ import Vela
         ( StepNumber
         , Steps
         )
+import Html.Attributes exposing (id)
 
 
 
@@ -115,6 +119,22 @@ update model msg ( getBuildStepLogs, getBuildStepsLogs ) focusResult =
 
         FocusOn id ->
             ( model, Dom.focus id |> Task.attempt focusResult )
+
+        Base64Decode logId inStr ->
+            ( model
+            , Interop.base64Decode <| Encode.string <| logId ++ ":" ++ inStr
+            )
+
+        OnBase64Decode out ->
+            let                
+                id = out |> List.head |> Maybe.withDefault ""
+                decoded = out |> List.reverse |> List.head |> Maybe.withDefault ""
+                _ = Debug.log "id" id
+                _ = Debug.log "decoded" decoded
+            in
+            ( model
+            , Cmd.none
+            )
 
 
 {-| clickStep : takes steps and step number, toggles step view state, and returns whether or not to fetch logs

@@ -1201,6 +1201,7 @@ subscriptions model =
     Sub.batch <|
         [ Interop.onSessionChange decodeOnSessionChange
         , Interop.onThemeChange decodeOnThemeChange
+        , Interop.onBase64Decode decodeBase64Decode
         , onMouseDown "contextual-help" model ShowHideHelp
         , onMouseDown "identity" model ShowHideIdentity
         , Browser.Events.onKeyDown (Decode.map OnKeyDown keyDecoder)
@@ -1223,6 +1224,16 @@ decodeOnSessionChange sessionJson =
         Err _ ->
             -- typically you end up here when getting logged out where we return null
             SessionChanged Nothing
+
+
+decodeBase64Decode : Decode.Value -> Msg
+decodeBase64Decode inStr =
+    case Decode.decodeValue (Decode.list Decode.string) inStr of
+        Ok decoded ->
+            BuildUpdate <| Pages.Build.Model.OnBase64Decode decoded
+
+        Err _ ->
+            NoOp
 
 
 decodeOnThemeChange : Decode.Value -> Msg
