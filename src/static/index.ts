@@ -87,10 +87,13 @@ app.ports.setFavicon.subscribe(function (url) {
 
 app.ports.base64Decode.subscribe(function (str) {  
   try {
-    let parsed = str.split(':');
-    let decoded = atob(parsed[1]);
-    let decodedWithId = [ parsed[0], decoded ].join(':');
-    setTimeout(() => app.ports.onBase64Decode.send([parsed[0], decoded]), 0);
+    let args = str.split(':');
+    let msg = args[args.length - 1];
+
+    let decoded = atob(msg);
+    args.push(decoded);
+
+    setTimeout(() => app.ports.onBase64Decode.send(args), 0);
   }
   catch(err) {
     console.log("could not decode logs");

@@ -122,13 +122,14 @@ update model msg ( getBuildStepLogs, getBuildStepsLogs ) focusResult =
 
         Base64Decode logId inStr ->
             ( model
-            , Interop.base64Decode <| Encode.string <| logId ++ ":" ++ inStr
+            , Interop.base64Decode <| Encode.string <| "stepid2:"++logId ++ ":" ++ inStr
             )
 
         OnBase64Decode out ->
             let                
                 id = out |> List.head |> Maybe.withDefault ""
                 decoded = out |> List.reverse |> List.head |> Maybe.withDefault ""
+                _ = Debug.log "out" out
                 _ = Debug.log "id" id
                 _ = Debug.log "decoded" decoded
             in
