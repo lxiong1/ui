@@ -51,6 +51,7 @@ import Pages.Build.Logs
     exposing
         ( base64Decode
         , decodeAnsi
+        , decodeLog
         , getDownloadLogsFileName
         , getStepLog
         , logEmpty
@@ -60,7 +61,6 @@ import Pages.Build.Logs
         , stepBottomTrackerFocusId
         , stepToFocusId
         , stepTopTrackerFocusId
-        , decodeLog
         , toString
         )
 import Pages.Build.Model exposing (Msg(..), PartialModel)
@@ -313,7 +313,6 @@ viewLogLines org repo buildNumber stepNumber logFocus maybeLog following shiftDo
 
         decodedLog =
             decodeLog maybeLog
-            
     in
     div
         [ class "logs"
@@ -327,21 +326,21 @@ viewLogLines org repo buildNumber stepNumber logFocus maybeLog following shiftDo
             _ ->
                 case decodedLog of
                     Just l ->
-                        let 
+                        let
                             fileSizeLimit =
                                 50000
 
                             sizeLimitExceeded =
                                 String.length l.view > fileSizeLimit
-                            
+
                             _ =
                                 Debug.log "log size" <| String.length l.view
-                    
                         in
                         if sizeLimitExceeded then
-                                [ logsHeader stepNumber fileName l.view
-                                , div [ class "logs-exceeded-limit" ] [ code [] [ text "Unable to render logs, too large." ] ]
-                                    ]
+                            [ logsHeader stepNumber fileName l.view
+                            , div [ class "logs-exceeded-limit" ] [ code [] [ text "Unable to render logs, too large." ] ]
+                            ]
+
                         else
                             let
                                 ( logs, numLines ) =
@@ -351,10 +350,14 @@ viewLogLines org repo buildNumber stepNumber logFocus maybeLog following shiftDo
                             , logsSidebar stepNumber following numLines
                             , logs
                             ]
+
                     _ ->
                         [ div [ class "loading-logs" ] [ Util.smallLoaderWithText "loading logs..." ]
                         ]
-                        -- base64Decode log
+
+
+
+-- base64Decode log
 
 
 {-| viewLines : takes step number, line focus information and click action and renders logs
