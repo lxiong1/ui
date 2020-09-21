@@ -765,7 +765,10 @@ update msg model =
                                 Cmd.none
                     in
                     ( updateLogs { model | steps = steps } log
-                    , cmd
+                    , Cmd.batch
+                        [ cmd
+                        , Interop.base64Decode <| Encode.string <| String.fromInt log.id ++ ":" ++ log.data
+                        ]
                     )
 
                 Err error ->

@@ -12,7 +12,7 @@ import File.Download as Download
 import Interop
 import Json.Encode as Encode
 import List.Extra
-import String.Extra
+
 import Pages.Build.Logs exposing (focusStep, logFocusFragment)
 import Pages.Build.Model
     exposing
@@ -26,10 +26,10 @@ import Util exposing (overwriteById)
 import Vela
     exposing
         ( StepNumber
-        , Steps
+        , Steps,Log,Logs
         )
-import Html.Attributes exposing (id)
 
+import List.Extra exposing (updateIf)
 
 
 -- UPDATE
@@ -120,22 +120,37 @@ update model msg ( getBuildStepLogs, getBuildStepsLogs ) focusResult =
         FocusOn id ->
             ( model, Dom.focus id |> Task.attempt focusResult )
 
-        Base64Decode logId inStr ->
-            ( model
-            , Interop.base64Decode <| Encode.string <| "stepid2:"++logId ++ ":" ++ inStr
-            )
-
         OnBase64Decode out ->
             let                
                 id = out |> List.head |> Maybe.withDefault ""
                 decoded = out |> List.reverse |> List.head |> Maybe.withDefault ""
-                _ = Debug.log "out" out
-                _ = Debug.log "id" id
-                _ = Debug.log "decoded" decoded
             in
-            ( model
+            ( {model | logs = updateLogDecoded decoded id model.logs}
             , Cmd.none
             )
+
+{-| updateLogDecoded : takes decoded log data and updates the appropriate log decoded field
+-}
+updateLogDecoded : String -> String -> Logs -> Logs
+updateLogDecoded decodedData logId logs =
+    updateIf
+        (\log ->
+            case log of
+                Success log_ ->
+                    logId == String.fromInt log_.id
+
+                _ ->
+                    False
+        )
+        (\log ->
+            case log of
+                Success log_ ->
+                    RemoteData.succeed { log_ | decoded = decodedData }
+
+                _ ->
+                    log
+        )
+        logs
 
 
 {-| clickStep : takes steps and step number, toggles step view state, and returns whether or not to fetch logs

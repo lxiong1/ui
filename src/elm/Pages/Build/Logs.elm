@@ -15,7 +15,7 @@ module Pages.Build.Logs exposing
     , getDownloadLogsFileName
     , getStepLog
     , logEmpty
-    , logFocusExists
+    , logFocusExists, toDecodedData
     , logFocusFragment
     , logFocusStyles
     , logRangeId
@@ -349,6 +349,22 @@ toString log =
             case log_ of
                 RemoteData.Success l ->
                     l.data
+
+                _ ->
+                    ""
+
+        Nothing ->
+            ""
+
+{-| toDecodedData : returns decoded log as string from a Maybe Log
+-}
+toDecodedData : Maybe (WebData Log) -> String
+toDecodedData log =
+    case log of
+        Just log_ ->
+            case log_ of
+                RemoteData.Success l ->
+                    l.decoded
 
                 _ ->
                     ""

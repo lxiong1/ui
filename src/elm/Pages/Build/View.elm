@@ -60,6 +60,7 @@ import Pages.Build.Logs
         , stepBottomTrackerFocusId
         , stepToFocusId
         , stepTopTrackerFocusId
+        , toDecodedData
         , toString
         )
 import Pages.Build.Model exposing (Msg(..), PartialModel)
@@ -257,10 +258,6 @@ viewStepDetails now org repo buildNumber step logs follow shift =
         stepNumber =
             String.fromInt step.number
 
-        l =
-            toString <| getStepLog step logs
-        b =   button [ class "button", class "-link", onClick <| Base64Decode stepNumber l ] [ text "decode logs" ]
-
         stepSummary =
             [ summary
                 [ class "summary"
@@ -274,7 +271,6 @@ viewStepDetails now org repo buildNumber step logs follow shift =
                     , div [ class "-duration" ] [ text <| Util.formatRunTime now step.started step.finished ]
                     ]
                 , FeatherIcons.chevronDown |> FeatherIcons.withSize 20 |> FeatherIcons.withClass "details-icon-expand" |> FeatherIcons.toHtml []
-                , b
                 ]
             , div [ class "logs-container" ] [ viewLogs org repo buildNumber step logs follow shift ]
             ]
@@ -310,14 +306,23 @@ viewLogs org repo buildNumber step logs follow shiftDown =
 viewLogLines : Org -> Repo -> BuildNumber -> StepNumber -> LogFocus -> Maybe (WebData Log) -> Int -> Bool -> Html Msg
 viewLogLines org repo buildNumber stepNumber logFocus maybeLog following shiftDown =
     let
-        log =
-            toString maybeLog
-
+        -- log =
+        --     toString maybeLog
         fileName =
             getDownloadLogsFileName org repo buildNumber "step" stepNumber
 
         decodedLog =
-            base64Decode log
+            toDecodedData maybeLog
+
+        -- base64Decode log
+        fileSizeLimit =
+            50000
+
+        sizeLimitExceeded =
+            String.length decodedLog > fileSizeLimit
+
+        _ =
+            Debug.log "log size" <| String.length decodedLog
     in
     div
         [ class "logs"
@@ -329,9 +334,13 @@ viewLogLines org repo buildNumber stepNumber logFocus maybeLog following shiftDo
                 [ code [ Util.testAttribute "logs-error" ] [ text "error" ] ]
 
             _ ->
-                if logEmpty log then
+                if logEmpty decodedLog then
+                    [ div [ class "loading-logs" ] [ Util.smallLoaderWithText "loading logs..." ]
+                    ]
+
+                else if sizeLimitExceeded then
                     [ logsHeader stepNumber fileName decodedLog
-                    , div [ class "loading-logs" ] [ Util.smallLoaderWithText "loading logs..." ]
+                    , div [ class "logs-exceeded-limit" ] [ code [] [ text "Unable to render logs, too large." ] ]
                     ]
 
                 else

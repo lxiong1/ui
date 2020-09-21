@@ -96,7 +96,7 @@ app.ports.base64Decode.subscribe(function (str) {
     setTimeout(() => app.ports.onBase64Decode.send(args), 0);
   }
   catch(err) {
-    console.log("could not decode logs");
+    console.log("could not base64 decode string");
   }
 });
 
