@@ -1243,8 +1243,8 @@ decodeOnSessionChange sessionJson =
 
 
 decodeBase64Decode : Decode.Value -> Msg
-decodeBase64Decode inStr =
-    case Decode.decodeValue (Decode.list Decode.string) inStr of
+decodeBase64Decode out =
+    case Decode.decodeValue (Decode.list Decode.string) out of
         Ok decodedData ->
             OnBase64Decode decodedData
 
