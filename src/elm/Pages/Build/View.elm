@@ -60,7 +60,7 @@ import Pages.Build.Logs
         , stepBottomTrackerFocusId
         , stepToFocusId
         , stepTopTrackerFocusId
-        , toDecodedData
+        , decodeLog
         , toString
         )
 import Pages.Build.Model exposing (Msg(..), PartialModel)
@@ -312,17 +312,8 @@ viewLogLines org repo buildNumber stepNumber logFocus maybeLog following shiftDo
             getDownloadLogsFileName org repo buildNumber "step" stepNumber
 
         decodedLog =
-            toDecodedData maybeLog
-
-        -- base64Decode log
-        fileSizeLimit =
-            50000
-
-        sizeLimitExceeded =
-            String.length decodedLog > fileSizeLimit
-
-        _ =
-            Debug.log "log size" <| String.length decodedLog
+            decodeLog maybeLog
+            
     in
     div
         [ class "logs"
@@ -334,24 +325,36 @@ viewLogLines org repo buildNumber stepNumber logFocus maybeLog following shiftDo
                 [ code [ Util.testAttribute "logs-error" ] [ text "error" ] ]
 
             _ ->
-                if logEmpty decodedLog then
-                    [ div [ class "loading-logs" ] [ Util.smallLoaderWithText "loading logs..." ]
-                    ]
+                case decodedLog of
+                    Just l ->
+                        let 
+                            fileSizeLimit =
+                                50000
 
-                else if sizeLimitExceeded then
-                    [ logsHeader stepNumber fileName decodedLog
-                    , div [ class "logs-exceeded-limit" ] [ code [] [ text "Unable to render logs, too large." ] ]
-                    ]
-
-                else
-                    let
-                        ( logs, numLines ) =
-                            viewLines stepNumber logFocus decodedLog shiftDown
-                    in
-                    [ logsHeader stepNumber fileName decodedLog
-                    , logsSidebar stepNumber following numLines
-                    , logs
-                    ]
+                            sizeLimitExceeded =
+                                String.length l.view > fileSizeLimit
+                            
+                            _ =
+                                Debug.log "log size" <| String.length l.view
+                    
+                        in
+                        if sizeLimitExceeded then
+                                [ logsHeader stepNumber fileName l.view
+                                , div [ class "logs-exceeded-limit" ] [ code [] [ text "Unable to render logs, too large." ] ]
+                                    ]
+                        else
+                            let
+                                ( logs, numLines ) =
+                                    viewLines stepNumber logFocus l.view shiftDown
+                            in
+                            [ logsHeader stepNumber fileName l.view
+                            , logsSidebar stepNumber following numLines
+                            , logs
+                            ]
+                    _ ->
+                        [ div [ class "loading-logs" ] [ Util.smallLoaderWithText "loading logs..." ]
+                        ]
+                        -- base64Decode log
 
 
 {-| viewLines : takes step number, line focus information and click action and renders logs

@@ -15,7 +15,7 @@ module Pages.Build.Logs exposing
     , getDownloadLogsFileName
     , getStepLog
     , logEmpty
-    , logFocusExists, toDecodedData
+    , logFocusExists
     , logFocusFragment
     , logFocusStyles
     , logRangeId
@@ -24,6 +24,7 @@ module Pages.Build.Logs exposing
     , stepToFocusId
     , stepTopTrackerFocusId
     , toString
+    , decodeLog
     )
 
 import Ansi.Log
@@ -356,21 +357,23 @@ toString log =
         Nothing ->
             ""
 
-{-| toDecodedData : returns decoded log as string from a Maybe Log
+
+{-| decodeLog : returns decoded log as string from a Maybe Log
 -}
-toDecodedData : Maybe (WebData Log) -> String
-toDecodedData log =
-    case log of
-        Just log_ ->
-            case log_ of
+decodeLog : Maybe (WebData Log) -> Maybe Log
+decodeLog log =
+    Maybe.andThen
+            (\log_ -> case log_ of
                 RemoteData.Success l ->
-                    l.decoded
+                    if l.decoded then
+                        Just l
+
+                    else
+                        Nothing
 
                 _ ->
-                    ""
-
-        Nothing ->
-            ""
+                    Nothing)
+            log
 
 
 {-| stepTopTrackerFocusId : takes step number and returns the line focus id for auto focusing on log follow

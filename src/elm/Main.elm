@@ -2585,7 +2585,7 @@ updateLogDecoded decodedData logId =
         (\log ->
             case log of
                 Success log_ ->
-                    RemoteData.succeed { log_ | decoded = decodedData }
+                    RemoteData.succeed { log_ | decoded = True, view = decodedData }
 
                 _ ->
                     log
