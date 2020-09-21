@@ -354,6 +354,7 @@ type Msg
     | OnKeyDown String
     | OnKeyUp String
     | VisibilityChanged Visibility
+    | OnBase64Decode (List String)
       -- Components
     | BuildUpdate Pages.Build.Model.Msg
     | AddSecretUpdate Engine Pages.Secrets.Model.Msg
@@ -1152,6 +1153,18 @@ update msg model =
             in
             ( { model | visibility = visibility, shift = False }, cmd )
 
+        OnBase64Decode out ->
+            let
+                id =
+                    out |> List.head |> Maybe.withDefault ""
+
+                decodedData =
+                    out |> List.reverse |> List.head |> Maybe.withDefault ""
+            in
+            ( { model | logs = updateLogDecoded decodedData id model.logs }
+            , Cmd.none
+            )
+
         NoOp ->
             ( model, Cmd.none )
 
@@ -1232,8 +1245,8 @@ decodeOnSessionChange sessionJson =
 decodeBase64Decode : Decode.Value -> Msg
 decodeBase64Decode inStr =
     case Decode.decodeValue (Decode.list Decode.string) inStr of
-        Ok decoded ->
-            BuildUpdate <| Pages.Build.Model.OnBase64Decode decoded
+        Ok decodedData ->
+            OnBase64Decode decodedData
 
         Err _ ->
             NoOp
@@ -2554,6 +2567,29 @@ updateLog incomingLog logs =
         )
         (RemoteData.succeed incomingLog)
         logs
+
+
+{-| updateLogDecoded : takes decoded log data and updates the appropriate log decoded field
+-}
+updateLogDecoded : String -> String -> Logs -> Logs
+updateLogDecoded decodedData logId =
+    updateIf
+        (\log ->
+            case log of
+                Success log_ ->
+                    logId == String.fromInt log_.id
+
+                _ ->
+                    False
+        )
+        (\log ->
+            case log of
+                Success log_ ->
+                    RemoteData.succeed { log_ | decoded = decodedData }
+
+                _ ->
+                    log
+        )
 
 
 {-| addLog : takes incoming log and logs and adds log when not present

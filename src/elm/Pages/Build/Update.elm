@@ -9,10 +9,7 @@ module Pages.Build.Update exposing (expandActiveStep, mergeSteps, update)
 import Browser.Dom as Dom
 import Browser.Navigation as Navigation
 import File.Download as Download
-import Interop
-import Json.Encode as Encode
-import List.Extra
-
+import List.Extra exposing (updateIf)
 import Pages.Build.Logs exposing (focusStep, logFocusFragment)
 import Pages.Build.Model
     exposing
@@ -25,11 +22,11 @@ import Task
 import Util exposing (overwriteById)
 import Vela
     exposing
-        ( StepNumber
-        , Steps,Log,Logs
+        ( Logs
+        , StepNumber
+        , Steps
         )
 
-import List.Extra exposing (updateIf)
 
 
 -- UPDATE
@@ -119,38 +116,6 @@ update model msg ( getBuildStepLogs, getBuildStepsLogs ) focusResult =
 
         FocusOn id ->
             ( model, Dom.focus id |> Task.attempt focusResult )
-
-        OnBase64Decode out ->
-            let                
-                id = out |> List.head |> Maybe.withDefault ""
-                decoded = out |> List.reverse |> List.head |> Maybe.withDefault ""
-            in
-            ( {model | logs = updateLogDecoded decoded id model.logs}
-            , Cmd.none
-            )
-
-{-| updateLogDecoded : takes decoded log data and updates the appropriate log decoded field
--}
-updateLogDecoded : String -> String -> Logs -> Logs
-updateLogDecoded decodedData logId logs =
-    updateIf
-        (\log ->
-            case log of
-                Success log_ ->
-                    logId == String.fromInt log_.id
-
-                _ ->
-                    False
-        )
-        (\log ->
-            case log of
-                Success log_ ->
-                    RemoteData.succeed { log_ | decoded = decodedData }
-
-                _ ->
-                    log
-        )
-        logs
 
 
 {-| clickStep : takes steps and step number, toggles step view state, and returns whether or not to fetch logs
