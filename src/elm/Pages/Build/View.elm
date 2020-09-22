@@ -16,6 +16,7 @@ import Ansi.Log
 import Array
 import DateFormat.Relative exposing (relativeTime)
 import FeatherIcons
+import Filesize
 import Html
     exposing
         ( Html
@@ -84,6 +85,8 @@ import Vela
         , StepNumber
         , Steps
         )
+
+
 
 -- VIEW
 
@@ -330,29 +333,20 @@ viewLogLines org repo buildNumber stepNumber logFocus maybeLog following shiftDo
                 of
                     Just l ->
                         let
-                            fileSizeLimit =
-                                50000000000000
-
-                            sizeLimitExceeded =
-                                l.size > fileSizeLimit
-
                             fileName =
                                 getDownloadLogsFileName org repo buildNumber "step" stepNumber
                         in
-                        if sizeLimitExceeded then
-                            [ logsHeader stepNumber fileName l.view
-                            , div [ class "logs-exceeded-limit" ] [ code [] [ text "Unable to render logs, too large." ] ]
-                            ]
+                        if sizeLimitExceeded l then
+                            [ logsHeader stepNumber fileName l ]
 
                         else
                             let
                                 ( logs, numLines ) =
                                     viewLines stepNumber logFocus l.view shiftDown
                             in
-                            [ logsHeader stepNumber fileName l.view
+                            [ logsHeader stepNumber fileName l
                             , logsSidebar stepNumber following numLines
-                            , text "l.view"
-                            -- , logs
+                            , logs
                             ]
 
                     _ ->
@@ -360,7 +354,13 @@ viewLogLines org repo buildNumber stepNumber logFocus maybeLog following shiftDo
                         ]
 
 
-
+sizeLimitExceeded : Log -> Bool
+sizeLimitExceeded log =
+    let
+        fileSizeLimit =
+            1000000
+    in
+    log.size > fileSizeLimit
 
 
 {-| viewLines : takes step number, line focus information and click action and renders logs
@@ -507,8 +507,21 @@ expandAllStepsButton org repo buildNumber =
 
 {-| logsHeader : takes step number, filename and decoded log and renders logs header
 -}
-logsHeader : StepNumber -> String -> String -> Html Msg
-logsHeader stepNumber fileName decodedLog =
+logsHeader : StepNumber -> String -> Log -> Html Msg
+logsHeader stepNumber fileName log =
+    let
+        fileSizeLimit =
+            1000000
+
+        readableFileSizeLimit =
+            Filesize.format fileSizeLimit
+
+        readableFilesize =
+            Filesize.format log.size
+        unableToRender = 
+            "Unable to render logs, file size exceeded (" ++ readableFilesize ++ "/" ++ readableFileSizeLimit ++ ")."
+ 
+    in
     div [ class "buttons", class "logs-header" ]
         [ div
             [ class "line", class "actions" ]
@@ -517,7 +530,13 @@ logsHeader stepNumber fileName decodedLog =
                 , class "buttons"
                 , Util.testAttribute <| "logs-header-actions-" ++ stepNumber
                 ]
-                [ downloadStepLogsButton stepNumber fileName decodedLog ]
+                [ if sizeLimitExceeded log then
+                    code [class "logs-exceeded-limit"] [ text unableToRender ]
+
+                  else
+                    text ""
+                , downloadStepLogsButton stepNumber fileName log.view
+                ]
             ]
         ]
 

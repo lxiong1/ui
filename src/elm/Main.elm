@@ -170,8 +170,7 @@ import Vela
         )
 
 
-import Base64
-import Pages.Build.Logs
+
 -- TYPES
 
 
@@ -766,20 +765,11 @@ update msg model =
                             else
                                 Cmd.none
 
-                        fileSize =
-                            String.length incomingLog.data
-
-                        log =
-                            { incomingLog | 
-                            size = fileSize
-                            -- , view = Pages.Build.Logs.base64Decode incomingLog.data
-                            -- , decoded = True 
-                             }
                     in
-                    ( updateLogs { model | steps = steps } log
+                    ( updateLogs { model | steps = steps } incomingLog
                     , Cmd.batch
                         [ cmd
-                        , Interop.base64Decode <| Encode.list Encode.string [log.data, String.fromInt log.id] 
+                        , Interop.base64Decode <| Encode.list Encode.string [ incomingLog.data, String.fromInt incomingLog.id ]
                         ]
                     )
 
@@ -2577,30 +2567,32 @@ updateLog incomingLog logs =
 -}
 decodeLog : List String -> Logs -> Logs
 decodeLog out =
-        let
-            decodedData =
-                    out |> List.head |> Maybe.withDefault ""
+    let
+        decodedData =
+            out |> List.head |> Maybe.withDefault ""
 
-            id =
-                    out |> List.reverse |> List.head |> Maybe.withDefault ""
-        in
-        updateIf
-            (\log ->
-                case log of
-                    Success log_ ->
-                        id == String.fromInt log_.id
+        id =
+            out |> List.reverse |> List.head |> Maybe.withDefault ""
+        filesize = 
+            String.length decodedData
+    in
+    updateIf
+        (\log ->
+            case log of
+                Success log_ ->
+                    id == String.fromInt log_.id
 
-                    _ ->
-                        False
-            )
-            (\log ->
-                case log of
-                    Success log_ ->
-                        RemoteData.succeed { log_ | decoded = True, view = decodedData }
+                _ ->
+                    False
+        )
+        (\log ->
+            case log of
+                Success log_ ->
+                    RemoteData.succeed { log_ | decoded = True, view = decodedData, size = filesize }
 
-                    _ ->
-                        log
-            )
+                _ ->
+                    log
+        )
 
 
 {-| addLog : takes incoming log and logs and adds log when not present
