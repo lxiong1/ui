@@ -170,7 +170,8 @@ import Vela
         )
 
 
-
+import Base64
+import Pages.Build.Logs
 -- TYPES
 
 
@@ -736,7 +737,7 @@ update msg model =
 
         StepLogResponse stepNumber logFocus refresh response ->
             case response of
-                Ok ( _, log ) ->
+                Ok ( header, incomingLog ) ->
                     let
                         following =
                             model.followingStep /= 0
@@ -764,11 +765,21 @@ update msg model =
 
                             else
                                 Cmd.none
+
+                        fileSize =
+                            String.length incomingLog.data
+
+                        log =
+                            { incomingLog | 
+                            size = fileSize
+                            -- , view = Pages.Build.Logs.base64Decode incomingLog.data
+                            -- , decoded = True 
+                             }
                     in
                     ( updateLogs { model | steps = steps } log
                     , Cmd.batch
                         [ cmd
-                        , Interop.base64Decode <| Encode.string <| String.fromInt log.id ++ ":" ++ log.data
+                        , Interop.base64Decode <| Encode.list Encode.string [log.data, String.fromInt log.id] 
                         ]
                     )
 
@@ -1154,14 +1165,7 @@ update msg model =
             ( { model | visibility = visibility, shift = False }, cmd )
 
         OnBase64Decode out ->
-            let
-                id =
-                    out |> List.head |> Maybe.withDefault ""
-
-                decodedData =
-                    out |> List.reverse |> List.head |> Maybe.withDefault ""
-            in
-            ( { model | logs = updateLogDecoded decodedData id model.logs }
+            ( { model | logs = decodeLog out model.logs }
             , Cmd.none
             )
 
@@ -2569,27 +2573,34 @@ updateLog incomingLog logs =
         logs
 
 
-{-| updateLogDecoded : takes decoded log data and updates the appropriate log decoded field
+{-| decodeLog : takes decoded log data and updates the appropriate log decoded field
 -}
-updateLogDecoded : String -> String -> Logs -> Logs
-updateLogDecoded decodedData logId =
-    updateIf
-        (\log ->
-            case log of
-                Success log_ ->
-                    logId == String.fromInt log_.id
+decodeLog : List String -> Logs -> Logs
+decodeLog out =
+        let
+            decodedData =
+                    out |> List.head |> Maybe.withDefault ""
 
-                _ ->
-                    False
-        )
-        (\log ->
-            case log of
-                Success log_ ->
-                    RemoteData.succeed { log_ | decoded = True, view = decodedData }
+            id =
+                    out |> List.reverse |> List.head |> Maybe.withDefault ""
+        in
+        updateIf
+            (\log ->
+                case log of
+                    Success log_ ->
+                        id == String.fromInt log_.id
 
-                _ ->
-                    log
-        )
+                    _ ->
+                        False
+            )
+            (\log ->
+                case log of
+                    Success log_ ->
+                        RemoteData.succeed { log_ | decoded = True, view = decodedData }
+
+                    _ ->
+                        log
+            )
 
 
 {-| addLog : takes incoming log and logs and adds log when not present

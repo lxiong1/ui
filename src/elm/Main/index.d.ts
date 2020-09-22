@@ -67,7 +67,7 @@ export type Ports = {
   readonly setTheme: ToJS<Theme>;
   readonly setFavicon: ToJS<string>;
   readonly onThemeChange: ToElm<Theme>;
-  readonly base64Decode: ToJS<string>;
+  readonly base64Decode: ToJS<string[]>;
   readonly onBase64Decode: ToElm<String[]>;
 };
 

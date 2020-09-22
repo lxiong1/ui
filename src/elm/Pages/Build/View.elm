@@ -51,7 +51,6 @@ import Pages.Build.Logs
     exposing
         ( base64Decode
         , decodeAnsi
-        , decodeLog
         , getDownloadLogsFileName
         , getStepLog
         , logEmpty
@@ -85,8 +84,6 @@ import Vela
         , StepNumber
         , Steps
         )
-
-
 
 -- VIEW
 
@@ -305,15 +302,6 @@ viewLogs org repo buildNumber step logs follow shiftDown =
 -}
 viewLogLines : Org -> Repo -> BuildNumber -> StepNumber -> LogFocus -> Maybe (WebData Log) -> Int -> Bool -> Html Msg
 viewLogLines org repo buildNumber stepNumber logFocus maybeLog following shiftDown =
-    let
-        -- log =
-        --     toString maybeLog
-        fileName =
-            getDownloadLogsFileName org repo buildNumber "step" stepNumber
-
-        decodedLog =
-            decodeLog maybeLog
-    in
     div
         [ class "logs"
         , Util.testAttribute <| "logs-" ++ stepNumber
@@ -324,17 +312,32 @@ viewLogLines org repo buildNumber stepNumber logFocus maybeLog following shiftDo
                 [ code [ Util.testAttribute "logs-error" ] [ text "error" ] ]
 
             _ ->
-                case decodedLog of
+                case
+                    Maybe.andThen
+                        (\log_ ->
+                            case log_ of
+                                RemoteData.Success l ->
+                                    if l.decoded then
+                                        Just l
+
+                                    else
+                                        Nothing
+
+                                _ ->
+                                    Nothing
+                        )
+                        maybeLog
+                of
                     Just l ->
                         let
                             fileSizeLimit =
-                                50000
+                                50000000000000
 
                             sizeLimitExceeded =
-                                String.length l.view > fileSizeLimit
+                                l.size > fileSizeLimit
 
-                            _ =
-                                Debug.log "log size" <| String.length l.view
+                            fileName =
+                                getDownloadLogsFileName org repo buildNumber "step" stepNumber
                         in
                         if sizeLimitExceeded then
                             [ logsHeader stepNumber fileName l.view
@@ -348,7 +351,8 @@ viewLogLines org repo buildNumber stepNumber logFocus maybeLog following shiftDo
                             in
                             [ logsHeader stepNumber fileName l.view
                             , logsSidebar stepNumber following numLines
-                            , logs
+                            , text "l.view"
+                            -- , logs
                             ]
 
                     _ ->
@@ -357,7 +361,6 @@ viewLogLines org repo buildNumber stepNumber logFocus maybeLog following shiftDo
 
 
 
--- base64Decode log
 
 
 {-| viewLines : takes step number, line focus information and click action and renders logs

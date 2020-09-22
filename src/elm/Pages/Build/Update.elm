@@ -22,8 +22,7 @@ import Task
 import Util exposing (overwriteById)
 import Vela
     exposing
-        ( Logs
-        , StepNumber
+        ( StepNumber
         , Steps
         )
 

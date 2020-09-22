@@ -24,8 +24,7 @@ module Pages.Build.Logs exposing
     , stepToFocusId
     , stepTopTrackerFocusId
     , toString
-    , decodeLog
-    )
+     )
 
 import Ansi.Log
 import Array
@@ -356,24 +355,6 @@ toString log =
 
         Nothing ->
             ""
-
-
-{-| decodeLog : returns decoded log as string from a Maybe Log
--}
-decodeLog : Maybe (WebData Log) -> Maybe Log
-decodeLog log =
-    Maybe.andThen
-            (\log_ -> case log_ of
-                RemoteData.Success l ->
-                    if l.decoded then
-                        Just l
-
-                    else
-                        Nothing
-
-                _ ->
-                    Nothing)
-            log
 
 
 {-| stepTopTrackerFocusId : takes step number and returns the line focus id for auto focusing on log follow

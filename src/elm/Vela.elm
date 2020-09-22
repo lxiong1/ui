@@ -870,6 +870,7 @@ type alias Log =
     , data : String
     , decoded : Bool
     , view : String
+    , size : Int
     }
 
 
@@ -885,6 +886,7 @@ decodeLog =
         |> optional "data" string ""
         |> hardcoded False
         |> hardcoded ""
+        |> hardcoded 0
 
 
 type alias Logs =

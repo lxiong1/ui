@@ -85,18 +85,15 @@ app.ports.setFavicon.subscribe(function (url) {
   document.head.appendChild(newIcon);
 });
 
-app.ports.base64Decode.subscribe(function (str) {  
+app.ports.base64Decode.subscribe(function (args) {  
   try {
-    let args = str.split(':');
-    let msg = args[args.length - 1];
-
+    let msg = args[0];
     let decoded = atob(msg);
-    args.push(decoded);
-
+    args[0] = decoded;
     setTimeout(() => app.ports.onBase64Decode.send(args), 0);
   }
   catch(err) {
-    console.log("could not base64 decode string");
+    console.log("could not base64 decode string: ", err);
   }
 });
 
