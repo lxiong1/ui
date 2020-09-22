@@ -87,6 +87,10 @@ import Vela
         )
 
 
+fileSizeLimit =
+    1000000
+
+
 
 -- VIEW
 
@@ -315,22 +319,7 @@ viewLogLines org repo buildNumber stepNumber logFocus maybeLog following shiftDo
                 [ code [ Util.testAttribute "logs-error" ] [ text "error" ] ]
 
             _ ->
-                case
-                    Maybe.andThen
-                        (\log_ ->
-                            case log_ of
-                                RemoteData.Success l ->
-                                    if l.decoded then
-                                        Just l
-
-                                    else
-                                        Nothing
-
-                                _ ->
-                                    Nothing
-                        )
-                        maybeLog
-                of
+                case extractLog maybeLog of
                     Just l ->
                         let
                             fileName =
@@ -354,13 +343,21 @@ viewLogLines org repo buildNumber stepNumber logFocus maybeLog following shiftDo
                         ]
 
 
-sizeLimitExceeded : Log -> Bool
-sizeLimitExceeded log =
-    let
-        fileSizeLimit =
-            1000000
-    in
-    log.size > fileSizeLimit
+extractLog : Maybe (WebData Log) -> Maybe Log
+extractLog =
+    Maybe.andThen
+        (\log_ ->
+            case log_ of
+                RemoteData.Success l ->
+                    if l.decoded then
+                        Just l
+
+                    else
+                        Nothing
+
+                _ ->
+                    Nothing
+        )
 
 
 {-| viewLines : takes step number, line focus information and click action and renders logs
@@ -509,19 +506,6 @@ expandAllStepsButton org repo buildNumber =
 -}
 logsHeader : StepNumber -> String -> Log -> Html Msg
 logsHeader stepNumber fileName log =
-    let
-        fileSizeLimit =
-            1000000
-
-        readableFileSizeLimit =
-            Filesize.format fileSizeLimit
-
-        readableFilesize =
-            Filesize.format log.size
-        unableToRender = 
-            "Unable to render logs, file size exceeded (" ++ readableFilesize ++ "/" ++ readableFileSizeLimit ++ ")."
- 
-    in
     div [ class "buttons", class "logs-header" ]
         [ div
             [ class "line", class "actions" ]
@@ -530,11 +514,7 @@ logsHeader stepNumber fileName log =
                 , class "buttons"
                 , Util.testAttribute <| "logs-header-actions-" ++ stepNumber
                 ]
-                [ if sizeLimitExceeded log then
-                    code [class "logs-exceeded-limit"] [ text unableToRender ]
-
-                  else
-                    text ""
+                [ viewSizeLimitExceeded log
                 , downloadStepLogsButton stepNumber fileName log.view
                 ]
             ]
@@ -643,6 +623,32 @@ stepFollowButton stepNumber following =
         , attribute "aria-label" <| tooltip ++ " for step " ++ stepNumber
         ]
         [ icon |> FeatherIcons.toHtml [ attribute "role" "img" ] ]
+
+
+sizeLimitExceeded : Log -> Bool
+sizeLimitExceeded log =
+    log.size > fileSizeLimit
+
+
+{-| viewSizeLimitExceeded : takes step number, filename and decoded log and renders logs header
+-}
+viewSizeLimitExceeded : Log -> Html Msg
+viewSizeLimitExceeded log =
+    if sizeLimitExceeded log then
+        let
+            readableFileSizeLimit =
+                Filesize.format fileSizeLimit
+
+            readableFilesize =
+                Filesize.format log.size
+
+            unableToRender =
+                "Unable to render logs, file size exceeded (" ++ readableFilesize ++ "/" ++ readableFileSizeLimit ++ ")."
+        in
+        code [ class "logs-exceeded-limit" ] [ text unableToRender ]
+
+    else
+        text ""
 
 
 {-| stepError : checks for build error and renders message
