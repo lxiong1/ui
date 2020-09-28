@@ -20,7 +20,7 @@ import Html
         ( Html
         , a
         , button
-        , details
+        , details,input,label
         , div
         , h1
         , p
@@ -30,7 +30,7 @@ import Html
         )
 import Html.Attributes
     exposing
-        ( attribute
+        ( attribute,for,type_,name,checked,id
         , class
         )
 import Html.Events exposing (onClick)
@@ -58,7 +58,7 @@ import Vela
         , Repository
         , SourceRepositories
         )
-
+import Pages.RepoSettings exposing (checkbox)
 
 
 -- TYPES
@@ -80,6 +80,7 @@ type alias Msgs msg =
     , enableRepo : EnableRepo msg
     , enableRepos : EnableRepos msg
     , toggleFavorite : ToggleFavorite msg
+    , filter : Bool -> msg
     }
 
 
@@ -111,7 +112,9 @@ view model actions =
     case sourceRepos of
         RemoteData.Success repos ->
             div [ class "source-repos", Util.testAttribute "source-repos" ]
-                [ repoSearchBarGlobal filters actions.search
+                [  
+                    viewSourceReposFilter True actions.filter
+                    ,repoSearchBarGlobal filters actions.search 
                 , viewSourceRepos model repos actions
                 ]
 
@@ -346,3 +349,52 @@ searchReposLocal user org filters repos enableRepo toggleFavorite =
       else
         [ div [ class "item" ] [ text "No results" ] ]
     )
+
+
+viewSourceReposFilter : Bool -> (Bool -> msg) -> Html msg
+viewSourceReposFilter shouldRender msg  =
+    let
+        eventEnum : List String
+        eventEnum =
+            [ "all", "push", "pull_request", "tag", "deployment" ]
+
+        -- eventToMaybe : String -> Maybe Event
+        -- eventToMaybe event =
+        --     case event of
+        --         "all" ->
+        --             Nothing
+
+        --         _ ->
+        --             Just event
+    in
+    if shouldRender then
+        div [ class "form-controls", class "build-filters", Util.testAttribute "build-filter" ] <|
+            [div [] [ text "Filter by status:" ]
+              ,div [ class "form-control" ]
+                            [
+                                --  input
+                                -- [ type_ "checkbox"
+                                -- , id <| "filter-" ++ "e"
+                                -- , name "build-filter"
+                                -- , class "checkbox"
+                                -- , Util.testAttribute <| "build-filter-" ++ "e"
+                                -- -- , checked <| maybeEvent == eventToMaybe e
+                                -- , checked True
+                                -- -- , onClick <| FilterBuildEventBy (eventToMaybe e) org repo
+                                -- , attribute "aria-label" <| "filter to show " ++ "e" ++ " events"
+                                -- ]
+                                -- []
+                                checkbox "Push"
+                                    "allow_push"
+                                    False
+                                <|
+                                    msg 
+                            , label
+                                [ class "form-label"
+                                , for <| "filter-" ++ "e"
+                                ]
+                                [ text <| String.replace "_" " " "enabled" ]
+                            ]]
+    else
+        text ""
+

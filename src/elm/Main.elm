@@ -313,6 +313,7 @@ type Msg
     | SignInRequested
     | FetchSourceRepositories
     | ToggleFavorite Org (Maybe Repo)
+    | FilterSourceRepos
     | EnableRepo Repository
     | UpdateRepoEvent Org Repo Field Bool
     | UpdateRepoAccess Org Repo Field String
@@ -396,6 +397,11 @@ update msg model =
             in
             ( model
             , Api.try (RepoFavoritedResponse favorite favorited) (Api.updateCurrentUser model body)
+            )
+
+        FilterSourceRepos ->
+            ( model
+            , Cmd.none
             )
 
         ShowHideHelp show ->
@@ -2570,7 +2576,7 @@ navMsgs =
 -}
 sourceReposMsgs : Pages.SourceRepos.Msgs Msg
 sourceReposMsgs =
-    Pages.SourceRepos.Msgs SearchSourceRepos EnableRepo EnableRepos ToggleFavorite
+    Pages.SourceRepos.Msgs SearchSourceRepos EnableRepo EnableRepos ToggleFavorite FilterSourceRepos
 
 
 {-| repoSettingsMsgs : prepares the input record required for the Settings page to route Msgs back to Main.elm
