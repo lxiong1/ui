@@ -20,9 +20,11 @@ import Html
         ( Html
         , a
         , button
-        , details,input,label
+        , details
         , div
         , h1
+        , input
+        , label
         , p
         , span
         , summary
@@ -30,8 +32,13 @@ import Html
         )
 import Html.Attributes
     exposing
-        ( attribute,for,type_,name,checked,id
+        ( attribute
+        , checked
         , class
+        , for
+        , id
+        , name
+        , type_
         )
 import Html.Events exposing (onClick)
 import RemoteData exposing (WebData)
@@ -58,7 +65,7 @@ import Vela
         , Repository
         , SourceRepositories
         )
-import Pages.RepoSettings exposing (checkbox)
+
 
 
 -- TYPES
@@ -70,6 +77,7 @@ type alias PartialModel =
     { user : WebData CurrentUser
     , sourceRepos : WebData SourceRepositories
     , filters : RepoSearchFilters
+    , filterByState : Maybe String
     }
 
 
@@ -80,7 +88,7 @@ type alias Msgs msg =
     , enableRepo : EnableRepo msg
     , enableRepos : EnableRepos msg
     , toggleFavorite : ToggleFavorite msg
-    , filter : Bool -> msg
+    , filterByStatus : Maybe String -> msg
     }
 
 
@@ -93,8 +101,8 @@ type alias Msgs msg =
 view : PartialModel -> Msgs msg -> Html msg
 view model actions =
     let
-        ( sourceRepos, filters ) =
-            ( model.sourceRepos, model.filters )
+        ( sourceRepos, filters, maybeState ) =
+            ( model.sourceRepos, model.filters, model.filterByState )
 
         loading =
             div []
@@ -112,9 +120,7 @@ view model actions =
     case sourceRepos of
         RemoteData.Success repos ->
             div [ class "source-repos", Util.testAttribute "source-repos" ]
-                [  
-                    viewSourceReposFilter True actions.filter
-                    ,repoSearchBarGlobal filters actions.search 
+                [ viewSourceReposFilter True filters maybeState actions
                 , viewSourceRepos model repos actions
                 ]
 
@@ -128,13 +134,41 @@ view model actions =
             viewResourceError { resourceLabel = "your available repositories", testLabel = "repos" }
 
 
+filterByState : Maybe String -> SourceRepositories -> SourceRepositories
+filterByState maybeState repos =
+    let
+        _ =
+            Debug.log "filterByState" maybeState
+    in
+    Dict.map (\_ -> \repos_ ->  f maybeState repos_ ) repos
+
+f maybeState repos = 
+    List.filter
+        (\repo ->
+            case maybeState of
+                Just s ->
+                    case s of
+                        "enabled" ->
+                            repo.active
+                        "disabled" ->
+                            not repo.active
+                        _ ->
+                            True
+
+                Nothing ->
+                    True
+        )
+        repos 
 {-| viewSourceRepos : takes model and source repos and renders them based on user search
 -}
 viewSourceRepos : PartialModel -> SourceRepositories -> Msgs msg -> Html msg
-viewSourceRepos model sourceRepos actions =
+viewSourceRepos model inSourceRepos actions =
     let
         filters =
             model.filters
+
+        sourceRepos =
+            filterByState model.filterByState inSourceRepos
     in
     if shouldSearch <| searchFilterGlobal filters then
         -- Search and render repos using the global filter
@@ -351,50 +385,56 @@ searchReposLocal user org filters repos enableRepo toggleFavorite =
     )
 
 
-viewSourceReposFilter : Bool -> (Bool -> msg) -> Html msg
-viewSourceReposFilter shouldRender msg  =
+viewSourceReposFilter : Bool -> RepoSearchFilters -> Maybe String -> Msgs msg -> Html msg
+viewSourceReposFilter shouldRender filters maybeState actions =
     let
-        eventEnum : List String
-        eventEnum =
-            [ "all", "push", "pull_request", "tag", "deployment" ]
+        stateEnum : List String
+        stateEnum =
+            [ "all", "disabled", "enabled" ]
 
-        -- eventToMaybe : String -> Maybe Event
-        -- eventToMaybe event =
-        --     case event of
-        --         "all" ->
-        --             Nothing
+        stateToMaybe : String -> Maybe String
+        stateToMaybe state =
+            case state of
+                "all" ->
+                    Nothing
 
-        --         _ ->
-        --             Just event
+                _ ->
+                    Just state
+
+        states =
+            div [ Html.Attributes.style "justify-content" "flex-start", class "form-controls" ] <|
+                div [] [ text "Filter by State:" ]
+                    :: List.map
+                        (\s ->
+                            div [ class "form-control" ]
+                                [ input
+                                    [ type_ "radio"
+                                    , id <| "filter-" ++ s
+                                    , name "build-filter"
+                                    , Util.testAttribute <| "build-filter-" ++ s
+                                    , checked <| maybeState == stateToMaybe s
+                                    , onClick <| actions.filterByStatus <| stateToMaybe s
+                                    , attribute "aria-label" <| "filter to show " ++ s ++ " repos"
+                                    ]
+                                    []
+                                , label
+                                    [ class "form-label"
+                                    , for <| "filter-" ++ s
+                                    ]
+                                    [ text <| String.replace "_" " " s ]
+                                ]
+                        )
+                        stateEnum
     in
     if shouldRender then
-        div [ class "form-controls", class "build-filters", Util.testAttribute "build-filter" ] <|
-            [div [] [ text "Filter by status:" ]
-              ,div [ class "form-control" ]
-                            [
-                                --  input
-                                -- [ type_ "checkbox"
-                                -- , id <| "filter-" ++ "e"
-                                -- , name "build-filter"
-                                -- , class "checkbox"
-                                -- , Util.testAttribute <| "build-filter-" ++ "e"
-                                -- -- , checked <| maybeEvent == eventToMaybe e
-                                -- , checked True
-                                -- -- , onClick <| FilterBuildEventBy (eventToMaybe e) org repo
-                                -- , attribute "aria-label" <| "filter to show " ++ "e" ++ " events"
-                                -- ]
-                                -- []
-                                checkbox "Push"
-                                    "allow_push"
-                                    False
-                                <|
-                                    msg 
-                            , label
-                                [ class "form-label"
-                                , for <| "filter-" ++ "e"
-                                ]
-                                [ text <| String.replace "_" " " "enabled" ]
-                            ]]
+        div
+            [ Util.testAttribute "source-repos-filter"
+            , class "source-repos-filters"
+            ]
+        <|
+            [ states
+            , repoSearchBarGlobal filters actions.search
+            ]
+
     else
         text ""
-

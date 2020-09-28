@@ -203,6 +203,7 @@ type alias Model =
     , zone : Zone
     , time : Posix
     , filters : RepoSearchFilters
+    , filterByState : Maybe String
     , favoritesFilter : String
     , repo : WebData Repository
     , inTimeout : Maybe Int
@@ -255,6 +256,7 @@ init flags url navKey =
             , zone = utc
             , time = millisToPosix 0
             , filters = Dict.empty
+            , filterByState = Nothing
             , favoritesFilter = ""
             , repo = RemoteData.succeed defaultRepository
             , inTimeout = Nothing
@@ -313,7 +315,7 @@ type Msg
     | SignInRequested
     | FetchSourceRepositories
     | ToggleFavorite Org (Maybe Repo)
-    | FilterSourceRepos
+    | FilterSourceReposByState (Maybe String)
     | EnableRepo Repository
     | UpdateRepoEvent Org Repo Field Bool
     | UpdateRepoAccess Org Repo Field String
@@ -399,8 +401,8 @@ update msg model =
             , Api.try (RepoFavoritedResponse favorite favorited) (Api.updateCurrentUser model body)
             )
 
-        FilterSourceRepos ->
-            ( model
+        FilterSourceReposByState state ->
+            ( {model | filterByState = state }
             , Cmd.none
             )
 
@@ -1526,6 +1528,7 @@ viewContent model =
                 { user = model.user
                 , sourceRepos = model.sourceRepos
                 , filters = model.filters
+                , filterByState = model.filterByState
                 }
                 sourceReposMsgs
             )
@@ -2576,7 +2579,7 @@ navMsgs =
 -}
 sourceReposMsgs : Pages.SourceRepos.Msgs Msg
 sourceReposMsgs =
-    Pages.SourceRepos.Msgs SearchSourceRepos EnableRepo EnableRepos ToggleFavorite FilterSourceRepos
+    Pages.SourceRepos.Msgs SearchSourceRepos EnableRepo EnableRepos ToggleFavorite FilterSourceReposByState
 
 
 {-| repoSettingsMsgs : prepares the input record required for the Settings page to route Msgs back to Main.elm

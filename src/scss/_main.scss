@@ -1268,6 +1268,46 @@ nav {
   }
 }
 
+
+// source-repos filters
+.source-repos-filters {
+  justify-content: flex-start;
+  margin: 1rem 0;
+  padding: 1rem;
+
+  font-size: 1rem;
+
+  background-color: var(--color-bg-dark);
+
+  .form-control {
+    margin-left: 1rem;
+  }
+  
+  .form-control [type=checkbox] + .form-label {
+    margin-left: 1rem;
+  }
+
+  .form-control input:not([type=checkbox]):not([type=radio]) {
+    background-color: var(--color-bg-dark);
+  }
+  
+  .form-label {
+    position: relative;
+    flex: inherit;
+  }
+
+  @media only screen and (max-width: 40em) {
+    flex-flow: wrap column;
+
+    .form-control {
+      margin: 0.5rem 1rem;
+    }
+  }
+  input:not([type='checkbox']):not([type='radio']) {
+    padding-left: 2rem;
+  }
+}
+
 .secrets-first-cell {
   padding: 0.5rem 1rem;
   padding-bottom: 0;
