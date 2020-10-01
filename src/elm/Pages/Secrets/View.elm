@@ -58,10 +58,7 @@ import Vela
         , secretsErrorLabel
         )
 
-
-
 -- SECRETS
-
 
 {-| secrets : takes model and renders page for managing secrets
 -}
@@ -135,7 +132,7 @@ secrets model =
     in
     case secretsModel.secrets of
         Success s ->
-            div []
+                div []
                 [ Table.view
                     (Table.Config
                         args.label
@@ -177,6 +174,7 @@ tableHeaders =
     , ( Nothing, "events" )
     , ( Nothing, "images" )
     , ( Nothing, "allow command" )
+    , ( Nothing, "key" )
     ]
 
 
@@ -218,6 +216,12 @@ renderSecret type_ secret =
             , class "break-word"
             ]
             [ text <| Util.boolToYesNo secret.allowCommand ]
+        , td
+            [ attribute "data-label" "key"
+            , scope "row"
+            , class "break-word"
+            ]
+            [ text <| getKey secret ]
         ]
 
 
@@ -380,3 +384,19 @@ editForm secretsModel =
             [ button [ class "button", class "-outline", onClick <| Pages.Secrets.Model.UpdateSecret secretsModel.engine ] [ text "Update" ]
             ]
         ]
+
+{-| getKey : takes secret and returns key, depending on type
+-}
+getKey : Secret -> String
+getKey secret =
+    let
+        args =
+            case secret.type_ of
+                SharedSecret ->
+                    [ secret.org, secret.team, secret.name ]
+                OrgSecret ->
+                    [ secret.org, secret.name ]
+                RepoSecret ->
+                    [ secret.org, secret.repo, secret.name ]
+    in
+        String.join "/" args

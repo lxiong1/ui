@@ -88,7 +88,15 @@ view { label, testLabel, noRows, columns, rows, headerElement } =
                 , Maybe.withDefault (text "") headerElement
                 ]
             ]
-        , thead [] [ tr [] <| List.map (\( className, col ) -> th [ class <| Maybe.withDefault "" className, scope "col" ] [ text <| String.Extra.toTitleCase col ]) columns ]
+        , thead []
+            [ tr [] <|
+                List.map
+                    (\( className, col ) ->
+                        th [ class <| Maybe.withDefault "" className, scope "col" ]
+                            [ text <| String.Extra.toTitleCase col ]
+                    )
+                    columns
+            ]
         , footer noRows numRows
         , tbody [] <| List.map (\row_ -> row_.display row_.data) rows
         ]
