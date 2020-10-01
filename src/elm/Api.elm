@@ -22,6 +22,7 @@ module Api exposing
     , getRepositories
     , getSecret
     , getSecrets
+    , getServiceLogs
     , getSourceRepositories
     , getStep
     , getStepLogs
@@ -477,6 +478,14 @@ getAllServices model org repository buildNumber =
 getService : PartialModel a -> Org -> Repo -> BuildNumber -> ServiceNumber -> Request Service
 getService model org repository buildNumber serviceNumber =
     get model.velaAPI (Endpoint.Service org repository buildNumber serviceNumber) decodeService
+        |> withAuth model.session
+
+
+{-| getServiceLogs : fetches vela build service log by repository, build number and service number
+-}
+getServiceLogs : PartialModel a -> Org -> Repo -> BuildNumber -> ServiceNumber -> Request Log
+getServiceLogs model org repository buildNumber serviceNumber =
+    get model.velaAPI (Endpoint.ServiceLogs org repository buildNumber serviceNumber) decodeLog
         |> withAuth model.session
 
 
