@@ -43,49 +43,7 @@ import Http.Detailed
 import Json.Decode exposing (Decoder)
 import RemoteData exposing (RemoteData(..))
 import Task exposing (Task)
-import Vela
-    exposing
-        ( AuthParams
-        , Build
-        , BuildNumber
-        , Builds
-        , CurrentUser
-        , Engine
-        , Event
-        , Hook
-        , Hooks
-        , Key
-        , Log
-        , Name
-        , Org
-        , Repo
-        , Repositories
-        , Repository
-        , Secret
-        , Secrets
-        , Session
-        , SourceRepositories
-        , Step
-        , StepNumber
-        , Steps
-        , Type
-        , User
-        , decodeBuild
-        , decodeBuilds
-        , decodeCurrentUser
-        , decodeHook
-        , decodeHooks
-        , decodeLog
-        , decodeRepositories
-        , decodeRepository
-        , decodeSecret
-        , decodeSecrets
-        , decodeSourceRepositories
-        , decodeStep
-        , decodeSteps
-        , decodeUser
-        , defaultSession
-        )
+import Vela exposing (AuthParams, Build, BuildNumber, Builds, CurrentUser, Engine, Event, Hook, Hooks, Key, Log, Name, Org, Repo, Repositories, Repository, Secret, Secrets, Service, ServiceNumber, Services, Session, SourceRepositories, Step, StepNumber, Steps, Type, User, decodeBuild, decodeBuilds, decodeCurrentUser, decodeHook, decodeHooks, decodeLog, decodeRepositories, decodeRepository, decodeSecret, decodeSecrets, decodeService, decodeServices, decodeSourceRepositories, decodeStep, decodeSteps, decodeUser, defaultSession)
 
 
 
@@ -475,7 +433,7 @@ getBuilds model maybePage maybePerPage maybeEvent org repository =
         |> withAuth model.session
 
 
-{-| getAllBuilds : used in conjuction with 'tryAll', it retrieves all pages of the resource
+{-| getAllBuilds : used in conjunction with 'tryAll', it retrieves all pages of the resource
 
     Note: the singular version of the type/decoder is needed in this case as it turns it into a list
 
@@ -492,6 +450,33 @@ getAllBuilds model org repository =
 getBuild : PartialModel a -> Org -> Repo -> BuildNumber -> Request Build
 getBuild model org repository buildNumber =
     get model.velaAPI (Endpoint.Build org repository buildNumber) decodeBuild
+        |> withAuth model.session
+
+
+{-| getServices : fetches vela services for the given build
+-}
+getServices : PartialModel a -> Maybe Pagination.Page -> Maybe Pagination.PerPage -> Org -> Repo -> BuildNumber -> Request Services
+getServices model maybePage maybePerPage org repository buildNumber =
+    get model.velaAPI (Endpoint.Services maybePage maybePerPage org repository buildNumber) decodeServices
+        |> withAuth model.session
+
+
+{-| getAllServices : used in conjunction with 'tryAll', it retrieves all pages of the resource
+
+    Note: the singular version of the type/decoder is needed in this case as it turns it into a list
+
+-}
+getAllServices : PartialModel a -> Org -> Repo -> BuildNumber -> Request Service
+getAllServices model org repository buildNumber =
+    get model.velaAPI (Endpoint.Services (Just 1) (Just 100) org repository buildNumber) decodeService
+        |> withAuth model.session
+
+
+{-| getService : fetches vela service for the given build
+-}
+getService : PartialModel a -> Org -> Repo -> BuildNumber -> ServiceNumber -> Request Service
+getService model org repository buildNumber serviceNumber =
+    get model.velaAPI (Endpoint.Service org repository buildNumber serviceNumber) decodeService
         |> withAuth model.session
 
 

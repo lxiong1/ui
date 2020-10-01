@@ -44,6 +44,9 @@ module Vela exposing
     , Secret
     , SecretType(..)
     , Secrets
+    , Service
+    , ServiceNumber
+    , Services
     , Session
     , SourceRepositories
     , Status(..)
@@ -73,6 +76,8 @@ module Vela exposing
     , decodeRepository
     , decodeSecret
     , decodeSecrets
+    , decodeService
+    , decodeServices
     , decodeSession
     , decodeSourceRepositories
     , decodeStep
@@ -147,6 +152,10 @@ type alias Event =
 
 
 type alias BuildNumber =
+    String
+
+
+type alias ServiceNumber =
     String
 
 
@@ -688,6 +697,70 @@ defaultBuilds =
 
 type alias Builds =
     List Build
+
+
+
+-- SERVICES
+
+
+{-| Service : record type for vela service
+-}
+type alias Service =
+    { id : Int
+    , build_id : Int
+    , repo_id : Int
+    , number : Int
+    , name : String
+    , image : String
+    , status : Status
+    , error : String
+    , exit_code : Int
+    , created : Int
+    , started : Int
+    , finished : Int
+    , host : String
+    , runtime : String
+    , distribution : String
+    , viewing : Bool
+    , logFocus : ( Maybe Int, Maybe Int )
+    }
+
+
+{-| decodeService : decodes json from vela into service
+-}
+decodeService : Decoder Service
+decodeService =
+    Decode.succeed Service
+        |> optional "id" int -1
+        |> optional "build_id" int -1
+        |> optional "repo_id" int -1
+        |> optional "number" int -1
+        |> optional "name" string ""
+        |> optional "image" string ""
+        |> optional "status" buildStatusDecoder Pending
+        |> optional "error" string ""
+        |> optional "exit_code" int -1
+        |> optional "created" int -1
+        |> optional "started" int -1
+        |> optional "finished" int -1
+        |> optional "host" string ""
+        |> optional "runtime" string ""
+        |> optional "distribution" string ""
+        -- "viewing"
+        |> hardcoded False
+        -- "logFocus"
+        |> hardcoded ( Nothing, Nothing )
+
+
+type alias Services =
+    List Service
+
+
+{-| decodeServices : decodes json from vela into list of services
+-}
+decodeServices : Decoder Services
+decodeServices =
+    Decode.list decodeService
 
 
 {-| Status : type enum to represent the possible statuses a vela object can be in
