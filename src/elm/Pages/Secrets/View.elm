@@ -19,6 +19,7 @@ import Html
         , text
         , tr
         )
+import FeatherIcons
 import Html.Attributes
     exposing
         ( attribute
@@ -58,7 +59,10 @@ import Vela
         , secretsErrorLabel
         )
 
+
+
 -- SECRETS
+
 
 {-| secrets : takes model and renders page for managing secrets
 -}
@@ -132,7 +136,7 @@ secrets model =
     in
     case secretsModel.secrets of
         Success s ->
-                div []
+            div []
                 [ Table.view
                     (Table.Config
                         args.label
@@ -221,7 +225,13 @@ renderSecret type_ secret =
             , scope "row"
             , class "break-word"
             ]
-            [ text <| getKey secret ]
+            [ text <| getKey secret
+            , button [ class "button", class "-icon", class "copy-button" ]
+                [ FeatherIcons.copy
+                    |> FeatherIcons.withSize 18
+                    |> FeatherIcons.toHtml [ attribute "aria-hidden" "true" ]
+                ]
+            ]
         ]
 
 
@@ -385,6 +395,7 @@ editForm secretsModel =
             ]
         ]
 
+
 {-| getKey : takes secret and returns key, depending on type
 -}
 getKey : Secret -> String
@@ -394,9 +405,11 @@ getKey secret =
             case secret.type_ of
                 SharedSecret ->
                     [ secret.org, secret.team, secret.name ]
+
                 OrgSecret ->
                     [ secret.org, secret.name ]
+
                 RepoSecret ->
                     [ secret.org, secret.repo, secret.name ]
     in
-        String.join "/" args
+    String.join "/" args
