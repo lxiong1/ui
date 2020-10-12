@@ -724,16 +724,36 @@ nav {
   display: flex;
 }
 
+.stage .divider {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+
+  padding-right: 1rem;
+  padding-left: 2.6rem;
+  padding-top: 0.6rem;
+
+  margin-top: 0.6rem;
+
+  div {
+    background: var(--color-bg-light);
+    padding: 0.2rem 1.2rem;
+    border: 1px solid var(--color-bg-light);
+    font-weight: lighter;
+  }
+}
+
 .flowline-left {
   background: linear-gradient(
     90deg,
     hsla(0, 0, 0, 0) calc(3.25em - 1px),
-    hsla(0, 0%, 75%, 1) calc(3.25em),
+    var(--color-bg-light) calc(3.25em),
     hsla(0, 0, 0, 0) calc(3.25em + 1px)
   );
 }
 
-.step.flowline-left.-last {
+.step.flowline-left:last-child {
   background-repeat: no-repeat;
   background-size: 100% 2em;
 }
@@ -780,22 +800,25 @@ nav {
   font-family: var(--font-code);
 }
 
-.loading-logs {
-  margin-top: 0.3em;
-  margin-left: 0.3em;
-  padding: 0.5em 0;
-}
-
 .logs-container {
   margin-right: -1rem;
   margin-left: -1rem;
   background-color: var(--color-bg-dark);
   position: relative;
-}
-
-.logs {
   font-weight: 300;
   font-size: 14px;
+
+  .message {
+    padding: 0.5rem 1rem;
+
+    span {
+      margin-right: 0.6rem;
+    }
+  }
+
+  .error span {
+    color: var(--color-red-light);
+  }
 }
 
 .logs .line {
@@ -950,31 +973,23 @@ nav {
   }
 }
 
-.step-error,
-.step-skipped {
-  padding: 0.5rem 1rem;
-
-  color: var(--color-red-light);
-  font-size: 14px;
-}
-
 .animated {
   animation-duration: 1s;
 
   animation-fill-mode: both;
 }
 
+/* stylelint-disable */
 // used by pablen/toasty Elm package
-// stylelint-disable-next-line
 .bounceInRight {
   animation-name: bounceInRight;
 }
 
 // used by pablen/toasty Elm package
-// stylelint-disable-next-line
 .fadeOutRightBig {
   animation-name: fadeOutRightBig;
 }
+/* stylelint-enable */
 
 .alerts {
   ol {
