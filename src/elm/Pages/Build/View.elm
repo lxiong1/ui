@@ -555,7 +555,7 @@ viewLine id lineNumber line itemType logFocus shiftDown =
                     ]
                     [ td []
                         [ lineFocusButton itemType logFocus lineNumber shiftDown ]
-                    , td [ class "break-all", class "overflow-auto" ]
+                    , td [ class "break-text", class "overflow-auto" ]
                         [ code [ Util.testAttribute <| String.join "-" [ "log", "data", itemNum, String.fromInt lineNumber ] ]
                             [ Ansi.Log.viewLine l
                             ]
