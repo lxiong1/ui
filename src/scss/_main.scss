@@ -712,7 +712,8 @@ nav {
   font-size: 0.9rem;
 }
 
-.steps {
+.steps,
+.services {
   position: relative;
 
   .details {
@@ -720,7 +721,8 @@ nav {
   }
 }
 
-.step {
+.step,
+.service {
   display: flex;
 }
 
@@ -758,13 +760,20 @@ nav {
   background-size: 100% 2em;
 }
 
-.step .-status {
+.service.flowline-left.-last {
+  background-repeat: no-repeat;
+  background-size: 100% 2em;
+}
+
+.step .-status,
+.service .-status {
   margin-top: 2rem;
   margin-right: 1rem;
   margin-left: 2.6rem;
 }
 
-.step .-icon-container {
+.step .-icon-container,
+.service .-icon-container {
   padding-top: 12px;
   padding-bottom: 12px;
 
@@ -777,7 +786,8 @@ nav {
   margin-left: 36px;
 }
 
-.step .-icon.-pending {
+.step .-icon.-pending,
+.service .-icon-pending {
   padding: 8px;
 
   border: 2px solid var(--color-bg-light);
@@ -786,17 +796,20 @@ nav {
   fill: var(--color-bg-light);
 }
 
-.step .-view.-running {
+.step .-view.-running,
+.service .-view-running {
   border-color: var(--color-yellow);
 }
 
-.step .-info {
+.step .-info,
+.service .-info {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
 }
 
-.step .-info .-duration {
+.step .-info .-duration,
+.service .-info .-duration {
   font-family: var(--font-code);
 }
 

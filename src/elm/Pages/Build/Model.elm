@@ -9,17 +9,7 @@ module Pages.Build.Model exposing (BuildModel, GetLogs, Msg(..), PartialModel)
 import Browser.Navigation as Navigation
 import RemoteData exposing (WebData)
 import Time exposing (Posix)
-import Vela
-    exposing
-        ( Build
-        , BuildNumber
-        , FocusFragment
-        , Logs
-        , Org
-        , Repo
-        , StepNumber
-        , Steps
-        )
+import Vela exposing (Build, BuildNumber, FocusFragment, Logs, Org, Repo, ServiceNumber, Services, StepNumber, Steps)
 
 
 
@@ -34,9 +24,11 @@ type alias PartialModel a =
         , time : Posix
         , build : WebData Build
         , steps : WebData Steps
+        , services : WebData Services
         , logs : Logs
         , shift : Bool
         , followingStep : Int
+        , followingService : Int
     }
 
 
@@ -46,6 +38,7 @@ type alias BuildModel =
     { org : Org
     , repo : Repo
     , buildNumber : BuildNumber
+    , services : Services
     , steps : Steps
     }
 
@@ -56,12 +49,22 @@ type alias BuildModel =
 
 type Msg
     = ExpandStep Org Repo BuildNumber StepNumber
+    | ExpandService Org Repo BuildNumber ServiceNumber
     | FocusLogs String
     | DownloadLogs String String
+    | FollowService Int
     | FollowStep Int
     | ExpandAllSteps Org Repo BuildNumber
     | CollapseAllSteps
     | FocusOn String
+
+
+type alias GetServiceLogs a msg =
+    PartialModel a -> Org -> Repo -> BuildNumber -> ServiceNumber -> FocusFragment -> Bool -> Cmd msg
+
+
+type alias GetServicesLogs a msg =
+    PartialModel a -> Org -> Repo -> BuildNumber -> Services -> FocusFragment -> Bool -> Cmd msg
 
 
 type alias GetStepLogs a msg =
@@ -73,4 +76,8 @@ type alias GetStepsLogs a msg =
 
 
 type alias GetLogs a msg =
-    ( GetStepLogs a msg, GetStepsLogs a msg )
+    { getServiceLogs : GetServiceLogs a msg
+    , getServicesLogs : GetServicesLogs a msg
+    , getStepLogs : GetStepLogs a msg
+    , getStepsLogs : GetStepsLogs a msg
+    }

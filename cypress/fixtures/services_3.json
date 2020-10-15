@@ -1,0 +1,53 @@
+[
+  {
+    "id": 1,
+    "build_id": 1,
+    "repo_id": 1,
+    "number": 1,
+    "name": "kafka",
+    "image": "wurstmeister/kafka",
+    "status": "success",
+    "error": "",
+    "exit_code": 0,
+    "created": 1572029883,
+    "started": 1572029935,
+    "finished": 1572029937,
+    "host": "",
+    "runtime": "docker",
+    "distribution": "linux"
+  },
+  {
+    "id": 2,
+    "build_id": 1,
+    "repo_id": 1,
+    "number": 2,
+    "name": "postgres",
+    "image": "postgres/postgres",
+    "status": "running",
+    "error": "",
+    "exit_code": 0,
+    "created": 1572029883,
+    "started": 1572029935,
+    "finished": 1572029937,
+    "host": "",
+    "runtime": "docker",
+    "distribution": "linux"
+  },
+  {
+    "id": 3,
+    "build_id": 1,
+    "repo_id": 1,
+    "number": 3,
+    "name": "redis",
+    "image": "redis/redis",
+    "status": "running",
+    "error": "",
+    "exit_code": 0,
+    "created": 1572029883,
+    "started": 1572029935,
+    "finished": 1572029937,
+    "host": "",
+    "runtime": "docker",
+    "distribution": "linux"
+  }
+]

@@ -135,13 +135,42 @@ Cypress.Commands.add('stubBuildsFilter', () => {
 
 Cypress.Commands.add('stubStepsWithLogsAndSkipped', () => {
   cy.server();
+  cy.fixture('services_3.json').as('services');
   cy.fixture('steps_5_skipped_step.json').as('steps');
+  cy.route({
+    method: 'GET',
+    url: 'api/v1/repos/*/*/builds/*/services*',
+    status: 200,
+    response: '@services',
+  });
   cy.route({
     method: 'GET',
     url: 'api/v1/repos/*/*/builds/*/steps*',
     status: 200,
     response: '@steps',
   });
+
+  cy.fixture('services_logs_ansi').then(logs => {
+    cy.route({
+      method: 'GET',
+      url: 'api/v1/repos/*/*/builds/*/services/1/logs',
+      status: 200,
+      response: logs[0],
+    }).as('getServicesLogs-1');
+    cy.route({
+      method: 'GET',
+      url: 'api/v1/repos/*/*/builds/*/services/2/logs',
+      status: 200,
+      response: logs[1],
+    }).as('getServicesLogs-2');
+    cy.route({
+      method: 'GET',
+      url: 'api/v1/repos/*/*/builds/*/services/3/logs',
+      status: 200,
+      response: logs[2],
+    }).as('getServicesLogs-3');
+  });
+
   cy.fixture('logs').then(logs => {
     cy.route({
       method: 'GET',
@@ -350,4 +379,10 @@ Cypress.Commands.add('clickSteps', theme => {
   cy.get('[data-test=step-header-3]').click({ force: true });
   cy.get('[data-test=step-header-4]').click({ force: true });
   cy.get('[data-test=step-header-5]').click({ force: true });
+});
+
+Cypress.Commands.add('clickServices', theme => {
+  cy.get('[data-test=service-header-1]').click({ force: true });
+  cy.get('[data-test=service-header-2]').click({ force: true });
+  cy.get('[data-test=service-header-3]').click({ force: true });
 });

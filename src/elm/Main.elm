@@ -64,15 +64,9 @@ import Maybe
 import Nav
 import Pager
 import Pages exposing (Page(..))
-import Pages.Build.Logs
-    exposing
-        ( focusFragmentToFocusId
-        , focusLogs
-        , getCurrentStep
-        , stepBottomTrackerFocusId
-        )
+import Pages.Build.Logs exposing (focusFragmentToFocusId, focusLogs, getCurrentService, getCurrentStep, serviceBottomTrackerFocusId, stepBottomTrackerFocusId)
 import Pages.Build.Model
-import Pages.Build.Update exposing (expandActiveStep)
+import Pages.Build.Update exposing (expandActiveService, expandActiveStep)
 import Pages.Build.View
 import Pages.Builds exposing (view)
 import Pages.Home
@@ -101,73 +95,7 @@ import Toasty as Alerting exposing (Stack)
 import Url exposing (Url)
 import Url.Builder as UB exposing (QueryParameter)
 import Util
-import Vela
-    exposing
-        ( AuthParams
-        , Build
-        , BuildIdentifier
-        , BuildNumber
-        , Builds
-        , BuildsModel
-        , ChownRepo
-        , CurrentUser
-        , EnableRepo
-        , EnableRepos
-        , EnableRepositoryPayload
-        , Enabling(..)
-        , Engine
-        , Event
-        , Favicon
-        , Field
-        , FocusFragment
-        , Hooks
-        , HooksModel
-        , Key
-        , Log
-        , Logs
-        , Name
-        , Org
-        , RepairRepo
-        , Repo
-        , RepoSearchFilters
-        , Repositories
-        , Repository
-        , Secret
-        , SecretType(..)
-        , Secrets
-        , Session
-        , SourceRepositories
-        , Step
-        , StepNumber
-        , Steps
-        , Team
-        , Theme(..)
-        , Type
-        , UpdateRepositoryPayload
-        , UpdateUserPayload
-        , User
-        , buildUpdateFavoritesPayload
-        , buildUpdateRepoBoolPayload
-        , buildUpdateRepoIntPayload
-        , buildUpdateRepoStringPayload
-        , decodeSession
-        , decodeTheme
-        , defaultBuilds
-        , defaultEnableRepositoryPayload
-        , defaultFavicon
-        , defaultHooks
-        , defaultRepository
-        , defaultSession
-        , encodeEnableRepository
-        , encodeSession
-        , encodeTheme
-        , encodeUpdateRepository
-        , encodeUpdateUser
-        , isComplete
-        , secretTypeToString
-        , statusToFavicon
-        , stringToTheme
-        )
+import Vela exposing (AuthParams, Build, BuildIdentifier, BuildNumber, Builds, BuildsModel, ChownRepo, CurrentUser, EnableRepo, EnableRepos, EnableRepositoryPayload, Enabling(..), Engine, Event, Favicon, Field, FocusFragment, Hooks, HooksModel, Key, Log, Logs, Name, Org, RepairRepo, Repo, RepoSearchFilters, Repositories, Repository, Secret, SecretType(..), Secrets, Service, ServiceNumber, Services, Session, SourceRepositories, Step, StepNumber, Steps, Team, Theme(..), Type, UpdateRepositoryPayload, UpdateUserPayload, User, buildUpdateFavoritesPayload, buildUpdateRepoBoolPayload, buildUpdateRepoIntPayload, buildUpdateRepoStringPayload, decodeSession, decodeTheme, defaultBuilds, defaultEnableRepositoryPayload, defaultFavicon, defaultHooks, defaultRepository, defaultSession, encodeEnableRepository, encodeSession, encodeTheme, encodeUpdateRepository, encodeUpdateUser, isComplete, secretTypeToString, statusToFavicon, stringToTheme)
 
 
 
@@ -194,8 +122,10 @@ type alias Model =
     , builds : BuildsModel
     , build : WebData Build
     , steps : WebData Steps
+    , services : WebData Services
     , logs : Logs
     , followingStep : Int
+    , followingService : Int
     , velaAPI : String
     , velaFeedbackURL : String
     , velaDocsURL : String
@@ -246,8 +176,10 @@ init flags url navKey =
             , builds = defaultBuilds
             , build = NotAsked
             , steps = NotAsked
+            , services = NotAsked
             , logs = []
             , followingStep = 0
+            , followingService = 0
             , velaFeedbackURL = flags.velaFeedbackURL
             , velaDocsURL = flags.velaDocsURL
             , navigationKey = navKey
@@ -337,6 +269,9 @@ type Msg
     | RestartedBuildResponse Org Repo BuildNumber (Result (Http.Detailed.Error String) ( Http.Metadata, Build ))
     | BuildResponse Org Repo BuildNumber (Result (Http.Detailed.Error String) ( Http.Metadata, Build ))
     | BuildsResponse Org Repo (Result (Http.Detailed.Error String) ( Http.Metadata, Builds ))
+    | ServiceResponse Org Repo BuildNumber ServiceNumber (Result (Http.Detailed.Error String) ( Http.Metadata, Service ))
+    | ServicesResponse Org Repo BuildNumber (Maybe String) Bool (Result (Http.Detailed.Error String) ( Http.Metadata, Services ))
+    | ServiceLogResponse ServiceNumber (Maybe String) Bool (Result (Http.Detailed.Error String) ( Http.Metadata, Log ))
     | StepsResponse Org Repo BuildNumber (Maybe String) Bool (Result (Http.Detailed.Error String) ( Http.Metadata, Steps ))
     | StepResponse Org Repo BuildNumber StepNumber (Result (Http.Detailed.Error String) ( Http.Metadata, Step ))
     | StepLogResponse StepNumber FocusFragment Bool (Result (Http.Detailed.Error String) ( Http.Metadata, Log ))
@@ -705,6 +640,73 @@ update msg model =
                 Err error ->
                     ( { model | builds = { currentBuilds | builds = toFailure error } }, addError error )
 
+        ServiceResponse _ _ _ _ response ->
+            case response of
+                Ok ( _, service ) ->
+                    ( updateService model service, Cmd.none )
+
+                Err error ->
+                    ( model, addError error )
+
+        ServicesResponse org repo buildNumber logFocus refresh response ->
+            case response of
+                Ok ( _, services ) ->
+                    let
+                        mergedServices =
+                            services
+                                |> List.sortBy .number
+                                |> Pages.Build.Update.mergeServices logFocus refresh model.services
+
+                        updatedModel =
+                            { model | services = RemoteData.succeed mergedServices }
+
+                        cmd =
+                            getServicesLogs updatedModel org repo buildNumber mergedServices logFocus refresh
+                    in
+                    ( { updatedModel | services = RemoteData.succeed mergedServices }, cmd )
+
+                Err error ->
+                    ( model, addError error )
+
+        ServiceLogResponse serviceNumber logFocus refresh response ->
+            -- TODO: fix this up to add things for services
+            case response of
+                Ok ( _, incomingLog ) ->
+                    let
+                        following =
+                            model.followingService /= 0
+
+                        onFollowedService =
+                            model.followingService == (Maybe.withDefault -1 <| String.toInt serviceNumber)
+
+                        ( services, focusId ) =
+                            if following && refresh && onFollowedService then
+                                ( model.services
+                                    |> RemoteData.unwrap model.services
+                                        (\s -> expandActiveService serviceNumber s |> RemoteData.succeed)
+                                , serviceBottomTrackerFocusId <| String.fromInt model.followingService
+                                )
+
+                            else if not refresh then
+                                ( model.services, Util.extractFocusIdFromRange <| focusFragmentToFocusId logFocus )
+
+                            else
+                                ( model.services, "" )
+
+                        cmd =
+                            if not <| String.isEmpty focusId then
+                                Util.dispatch <| FocusOn <| focusId
+
+                            else
+                                Cmd.none
+                    in
+                    ( updateLogs { model | services = services } incomingLog
+                    , cmd
+                    )
+
+                Err error ->
+                    ( model, addError error )
+
         StepResponse _ _ _ _ response ->
             case response of
                 Ok ( _, step ) ->
@@ -1051,7 +1053,14 @@ update msg model =
         BuildUpdate m ->
             let
                 ( newModel, action ) =
-                    Pages.Build.Update.update model m ( getBuildStepLogs, getBuildStepsLogs ) FocusResult
+                    Pages.Build.Update.update model
+                        m
+                        { getServiceLogs = getServiceLogs
+                        , getServicesLogs = getServicesLogs
+                        , getStepLogs = getBuildStepLogs
+                        , getStepsLogs = getBuildStepsLogs
+                        }
+                        FocusResult
             in
             ( newModel
             , action
@@ -1658,10 +1667,12 @@ viewContent model =
                     { navigationKey = model.navigationKey
                     , time = model.time
                     , build = model.build
+                    , services = model.services
                     , steps = model.steps
                     , logs = model.logs
-                    , followingStep = model.followingStep
                     , shift = model.shift
+                    , followingService = model.followingService
+                    , followingStep = model.followingStep
                     }
                     org
                     repo
@@ -2373,13 +2384,16 @@ loadBuildPage model org repo buildNumber focusFragment =
         , builds = builds
         , build = Loading
         , steps = NotAsked
+        , services = NotAsked
         , followingStep = 0
+        , followingService = 0
         , logs = []
       }
     , Cmd.batch
         [ getBuilds model org repo Nothing Nothing Nothing
         , getBuild model org repo buildNumber
         , getAllBuildSteps model org repo buildNumber focusFragment False
+        , getAllServices model org repo buildNumber focusFragment False
         ]
     )
 
@@ -2452,7 +2466,14 @@ toFailure error =
 -}
 stepsIds : Steps -> List Int
 stepsIds steps =
-    List.map (\step -> step.number) steps
+    List.map .number steps
+
+
+{-| servicesIds : extracts Ids from list of services and returns List Int
+-}
+servicesIds : Services -> List Int
+servicesIds services =
+    List.map .number services
 
 
 {-| logIds : extracts Ids from list of logs and returns List Int
@@ -2460,6 +2481,48 @@ stepsIds steps =
 logIds : Logs -> List Int
 logIds logs =
     List.map (\log -> log.id) <| Util.successful logs
+
+
+{-| updateStep : takes model and incoming service and updates the list of services if necessary
+-}
+updateService : Model -> Service -> Model
+updateService model incomingService =
+    let
+        services =
+            case model.services of
+                Success s ->
+                    s
+
+                _ ->
+                    []
+
+        serviceExists =
+            List.member incomingService.number <| servicesIds services
+
+        following =
+            model.followingService /= 0
+    in
+    if serviceExists then
+        { model
+            | services =
+                services
+                    |> updateIf (\service -> incomingService.number == service.number)
+                        (\service ->
+                            let
+                                shouldView =
+                                    following
+                                        && (service.status /= Vela.Pending)
+                                        && (service.number == getCurrentService services)
+                            in
+                            { incomingService
+                                | viewing = service.viewing || shouldView
+                            }
+                        )
+                    |> RemoteData.succeed
+        }
+
+    else
+        { model | services = RemoteData.succeed <| incomingService :: services }
 
 
 {-| updateStep : takes model and incoming step and updates the list of steps if necessary
@@ -2506,6 +2569,12 @@ updateStep model incomingStep =
 
 {-| updateLogs : takes model and incoming log and updates the list of logs if necessary
 -}
+
+
+
+-- TODO: will this work with service logs?
+
+
 updateLogs : Model -> Log -> Model
 updateLogs model incomingLog =
     let
@@ -2609,6 +2678,35 @@ getBuilds model org repo maybePage maybePerPage maybeEvent =
 getBuild : Model -> Org -> Repo -> BuildNumber -> Cmd Msg
 getBuild model org repo buildNumber =
     Api.try (BuildResponse org repo buildNumber) <| Api.getBuild model org repo buildNumber
+
+
+getAllServices : Model -> Org -> Repo -> BuildNumber -> FocusFragment -> Bool -> Cmd Msg
+getAllServices model org repo buildNumber logFocus refresh =
+    Api.tryAll (ServicesResponse org repo buildNumber logFocus refresh) <| Api.getAllServices model org repo buildNumber
+
+
+getService : Model -> Org -> Repo -> BuildNumber -> ServiceNumber -> Cmd Msg
+getService model org repo buildNumber serviceNumber =
+    Api.try (ServiceResponse org repo buildNumber serviceNumber) <| Api.getService model org repo buildNumber serviceNumber
+
+
+getServiceLogs : Model -> Org -> Repo -> BuildNumber -> ServiceNumber -> FocusFragment -> Bool -> Cmd Msg
+getServiceLogs model org repo buildNumber serviceNumber logFocus refresh =
+    Api.try (ServiceLogResponse serviceNumber logFocus refresh) <| Api.getServiceLogs model org repo buildNumber serviceNumber
+
+
+getServicesLogs : Model -> Org -> Repo -> BuildNumber -> Services -> FocusFragment -> Bool -> Cmd Msg
+getServicesLogs model org repo buildNumber services logFocus refresh =
+    Cmd.batch <|
+        List.map
+            (\service ->
+                if service.viewing then
+                    getServiceLogs model org repo buildNumber (String.fromInt service.number) logFocus refresh
+
+                else
+                    Cmd.none
+            )
+            services
 
 
 getAllBuildSteps : Model -> Org -> Repo -> BuildNumber -> FocusFragment -> Bool -> Cmd Msg
