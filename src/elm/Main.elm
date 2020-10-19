@@ -1966,10 +1966,24 @@ setNewPage route model =
                 Pages.Build o r b _ ->
                     if not <| buildChanged ( org, repo, buildNumber ) ( o, r, b ) then
                         let
-                            ( page, steps, action ) =
-                                focusLogs model (RemoteData.withDefault [] model.steps) org repo buildNumber logFocus getBuildStepsLogs
+                            buildModel =
+                                Pages.Build.Model.BuildModel
+                                    org
+                                    repo
+                                    buildNumber
+                                    (RemoteData.withDefault [] model.services)
+                                    (RemoteData.withDefault [] model.steps)
+
+                            ( page, service, steps, action ) =
+                                focusLogs model buildModel logFocus getLogs
                         in
-                        ( { model | page = page, steps = RemoteData.succeed steps }, action )
+                        ( { model
+                            | page = page
+                            , steps = RemoteData.succeed steps
+                            , services = RemoteData.succeed services
+                          }
+                        , action
+                        )
 
                     else
                         loadBuildPage model org repo buildNumber logFocus

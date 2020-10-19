@@ -10,7 +10,7 @@ import Browser.Dom as Dom
 import Browser.Navigation as Navigation
 import File.Download as Download
 import List.Extra
-import Pages.Build.Logs exposing (LogType(..), focusService, focusStep, logFocusFragment)
+import Pages.Build.Logs exposing (ResourceNumber(..), ResourceType(..), focusResource, logFocusFragment)
 import Pages.Build.Model
     exposing
         ( GetLogs
@@ -62,7 +62,7 @@ update model msg getLogs focusResult =
                 [ action
                 , if serviceOpened then
                     -- TODO: we have to make logFocusFragment aware of Step vs Service
-                    Navigation.pushUrl model.navigationKey <| logFocusFragment (ServiceLog serviceNumber) []
+                    Navigation.pushUrl model.navigationKey <| logFocusFragment (ServiceNum serviceNumber) []
 
                   else
                     Cmd.none
@@ -100,7 +100,7 @@ update model msg getLogs focusResult =
             , Cmd.batch <|
                 [ action
                 , if stepOpened then
-                    Navigation.pushUrl model.navigationKey <| logFocusFragment (StepLog stepNumber) []
+                    Navigation.pushUrl model.navigationKey <| logFocusFragment (StepNum stepNumber) []
 
                   else
                     Cmd.none
@@ -228,10 +228,16 @@ mergeServices logFocus refresh currentServices incomingServices =
                                 )
                             |> List.filterMap identity
                     )
+
+        buildModel =
+            Pages.Build.Model.BuildModel "" "" "" updatedServices []
+
+        updatedBuildModel =
+            focusResource logFocus buildModel
     in
     -- when not an automatic refresh, respect the url focus
     if not refresh then
-        focusService logFocus updatedServices
+        updatedBuildModel.services
 
     else
         updatedServices
@@ -262,10 +268,16 @@ mergeSteps logFocus refresh currentSteps incomingSteps =
                                 )
                             |> List.filterMap identity
                     )
+
+        buildModel =
+            Pages.Build.Model.BuildModel "" "" "" [] updatedSteps
+
+        updatedBuildModel =
+            focusResource logFocus buildModel
     in
     -- when not an automatic refresh, respect the url focus
     if not refresh then
-        focusStep logFocus updatedSteps
+        updatedBuildModel.steps
 
     else
         updatedSteps

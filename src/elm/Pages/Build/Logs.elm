@@ -5,31 +5,28 @@ Use of this source code is governed by the LICENSE file in this repository.
 
 
 module Pages.Build.Logs exposing
-    ( LogType(..)
+    ( ResourceNumber(..)
+    , ResourceType(..)
     , SetLogFocus
     , decodeAnsi
     , focusFragmentToFocusId
     , focusLogs
-    , focusService
-    , focusStep
+    , focusResource
     , getCurrentService
     , getCurrentStep
     , getDownloadLogsFileName
-    , getServiceLog
-    , getStepLog
-    , itemAndLineToFocusId
+    , getResourceLog
     , logEmpty
     , logFocusExists
     , logFocusFragment
     , logFocusStyles
     , logRangeId
-    , serviceBottomTrackerFocusId
-    , serviceToFocusId
-    , stepAndLineToFocusId
-    , stepBottomTrackerFocusId
-    , stepToFocusId
-    , stepTopTrackerFocusId
+    , resourceAndLineToFocusId
+    , resourceBottomTrackerFocusId
+    , resourceToFocusId
+    , resourceTopTrackerFocusId
     , toString
+    , unwrapResourceNumber
     )
 
 import Ansi.Log
@@ -38,7 +35,22 @@ import List.Extra exposing (updateIf)
 import Pages exposing (Page)
 import Pages.Build.Model exposing (BuildModel, Msg(..))
 import RemoteData exposing (WebData)
-import Vela exposing (BuildNumber, FocusFragment, Log, LogFocus, Logs, Org, Repo, Service, ServiceNumber, Services, Step, StepNumber, Steps)
+import Vela
+    exposing
+        ( BuildNumber
+        , FocusFragment
+        , Log
+        , LogFocus
+        , Logs
+        , Org
+        , Repo
+        , Service
+        , ServiceNumber
+        , Services
+        , Step
+        , StepNumber
+        , Steps
+        )
 
 
 
@@ -51,8 +63,8 @@ type alias SetLogFocus msg =
     String -> msg
 
 
-type alias GetLogsFromSteps a msg =
-    a -> Org -> Repo -> BuildNumber -> Steps -> FocusFragment -> Bool -> Cmd msg
+type alias GetLogsFromResource a msg =
+    a -> BuildModel -> FocusFragment -> Bool -> Cmd msg
 
 
 type ResourceType
@@ -65,11 +77,15 @@ type ResourceNumber
     | ServiceNum ServiceNumber
 
 
+unwrapResourceNumber : ResourceNumber -> ( Int, String )
+unwrapResourceNumber resourceNumber =
+    -- TODO: use this whereever we are unwrapping resourceNumber
+    case resourceNumber of
+        StepNum a ->
+            ( Maybe.withDefault 0 <| String.toInt a, "step" )
 
---type LogType
---    = StepLog StepNumber
---    | ServiceLog ServiceNumber
--- HELPERS
+        ServiceNum a ->
+            ( Maybe.withDefault 0 <| String.toInt a, "service" )
 
 
 getResourceLog : ResourceType -> Logs -> Maybe (WebData Log)
@@ -77,11 +93,11 @@ getResourceLog resourceType logs =
     logs
         |> List.filter
             (\log ->
-                case (log, resourceType) of
-                    (RemoteData.Success log_, StepResource step) ->
+                case ( log, resourceType ) of
+                    ( RemoteData.Success log_, StepResource step ) ->
                         log_.step_id == step.id
 
-                    (RemoteData.Success log_, ServiceResource service) ->
+                    ( RemoteData.Success log_, ServiceResource service ) ->
                         log_.service_id == service.id
 
                     _ ->
@@ -90,49 +106,7 @@ getResourceLog resourceType logs =
         |> List.head
 
 
-{-| getServiceLog : takes service and logs and returns the log corresponding to that service
--}
-
-
-
---getServiceLog : Service -> Logs -> Maybe (WebData Log)
---getServiceLog service logs =
---    List.head
---        (List.filter
---            (\log ->
---                case log of
---                    RemoteData.Success log_ ->
---                        log_.service_id == service.id
---
---                    _ ->
---                        False
---            )
---            logs
---        )
-
-
-{-| getStepLog : takes step and logs and returns the log corresponding to that step
--}
-
-
-
---getStepLog : Step -> Logs -> Maybe (WebData Log)
---getStepLog step logs =
---    List.head
---        (List.filter
---            (\log ->
---                case log of
---                    RemoteData.Success log_ ->
---                        log_.step_id == step.id
---
---                    _ ->
---                        False
---            )
---            logs
---        )
-
-
-{-| logFocusFragment : takes step number and maybe line numbers and produces URL fragment for focusing log ranges
+{-| logFocusFragment : takes resource number and maybe line numbers and produces URL fragment for focusing log ranges
 -}
 logFocusFragment : ResourceNumber -> List String -> String
 logFocusFragment resourceNumber args =
@@ -148,6 +122,8 @@ logFocusFragment resourceNumber args =
     String.join ":" <| fragPrefix ++ args
 
 
+{-| resourceToFocusId : takes resource number and returns the resource focus id for auto focusing on page load
+-}
 resourceToFocusId : ResourceNumber -> String
 resourceToFocusId resourceNumber =
     case resourceNumber of
@@ -158,33 +134,8 @@ resourceToFocusId resourceNumber =
             "service-" ++ a
 
 
-{-| serviceToFocusId : takes service number and returns the service focus id for auto focusing on page load
+{-| resourceAndLineToFocusId : takes resource number and line number and returns the line focus id for auto focusing on page load
 -}
-
-
-
---serviceToFocusId : ServiceNumber -> String
---serviceToFocusId serviceNumber =
---    "service-" ++ serviceNumber
-
-
-{-| stepToFocusId : takes step number and returns the step focus id for auto focusing on page load
--}
-
-
-
---stepToFocusId : StepNumber -> String
---stepToFocusId stepNumber =
---    "step-" ++ stepNumber
-
-
-{-| stepAndLineToFocusId : takes step number and line number and returns the line focus id for auto focusing on page load
--}
---stepAndLineToFocusId : StepNumber -> Int -> String
---stepAndLineToFocusId stepNumber lineNumber =
---    "step-" ++ stepNumber ++ "-line-" ++ String.fromInt lineNumber
-
-
 resourceAndLineToFocusId : ResourceNumber -> Int -> String
 resourceAndLineToFocusId resourceNumber lineNumber =
     case resourceNumber of
@@ -220,7 +171,7 @@ focusFragmentToFocusId focusFragment =
             ""
 
 
-{-| logRangeId : takes step, line, and focus information and returns the fragment for focusing a range of logs
+{-| logRangeId : takes resource, line, and focus information and returns the fragment for focusing a range of logs
 -}
 logRangeId : ResourceNumber -> Int -> LogFocus -> Bool -> String
 logRangeId resourceNumber lineNumber logFocus shiftDown =
@@ -247,6 +198,8 @@ logRangeId resourceNumber lineNumber logFocus shiftDown =
             )
 
 
+{-| focusResource : takes FocusFragment URL fragment and expands the appropriate resource to automatically view
+-}
 focusResource : FocusFragment -> BuildModel -> BuildModel
 focusResource focusFragment buildModel =
     let
@@ -284,64 +237,6 @@ focusResource focusFragment buildModel =
             buildModel
 
 
-{-| focusService : takes FocusFragment URL fragment and expands the appropriate service to automatically view
--}
-
-
-
---focusService : FocusFragment -> Services -> Services
---focusService focusFragment services =
---    -- TODO: merge with focusStep
---    let
---        parsed =
---            parseFocusFragment focusFragment
---    in
---    case Maybe.withDefault "" parsed.target of
---        "service" ->
---            case parsed.targetNumber of
---                Just n ->
---                    updateIf (\service -> service.number == n)
---                        (\service ->
---                            { service | viewing = True, logFocus = ( parsed.lineA, parsed.lineB ) }
---                        )
---                        services
---
---                Nothing ->
---                    services
---
---        _ ->
---            services
---
-
-
-{-| focusStep : takes FocusFragment URL fragment and expands the appropriate step to automatically view
--}
-
-
-
---focusStep : FocusFragment -> Steps -> Steps
---focusStep focusFragment steps =
---    let
---        parsed =
---            parseFocusFragment focusFragment
---    in
---    case Maybe.withDefault "" parsed.target of
---        "step" ->
---            case parsed.targetNumber of
---                Just n ->
---                    updateIf (\step -> step.number == n)
---                        (\step ->
---                            { step | viewing = True, logFocus = ( parsed.lineA, parsed.lineB ) }
---                        )
---                        steps
---
---                Nothing ->
---                    steps
---
---        _ ->
---            steps
-
-
 {-| getCurrentStep : takes steps and returns the newest running or pending step
 -}
 getCurrentStep : Steps -> Int
@@ -368,10 +263,10 @@ getCurrentService services =
 
 {-| focusLogs : takes model org, repo, build number and log line fragment and loads the appropriate build with focus set on the appropriate log line.
 -}
-focusLogs : a -> BuildModel -> FocusFragment -> GetLogsFromSteps a msg -> ( Page, Steps, Cmd msg )
+focusLogs : a -> BuildModel -> FocusFragment -> GetLogsFromResource a msg -> ( Page, BuildModel, Cmd msg )
 focusLogs model buildModel focusFragment getLogs =
     let
-        ( stepsOut, action ) =
+        ( updatedBuildModel, action ) =
             let
                 focusedResources =
                     updateLogFocus buildModel focusFragment
@@ -382,84 +277,63 @@ focusLogs model buildModel focusFragment getLogs =
                 ]
             )
     in
-    ( Pages.Build buildModel focusFragment
-    , stepsOut
+    ( Pages.Build buildModel.org buildModel.repo buildModel.buildNumber focusFragment
+    , updatedBuildModel
     , action
     )
 
+
+{-| updateLogFocus : takes line focus and sets a new log line focus for the appropriate resource
+-}
 updateLogFocus : BuildModel -> FocusFragment -> BuildModel
 updateLogFocus buildModel focusFragment =
     let
         parsed =
             parseFocusFragment focusFragment
-
-        ( targetType, targetNumber ) =
-            ( parsed.target, parsed.targetNumber )
     in
-    case (parsed.target, parsed.targetNumber) of
-        (Just "step", Just n) ->
-            Debug.todo "implement"
+    case ( parsed.target, parsed.targetNumber ) of
+        ( Just "step", Just n ) ->
+            { buildModel
+                | steps =
+                    buildModel.steps
+                        |> List.map
+                            (\step ->
+                                if step.number == n then
+                                    { step | viewing = True, logFocus = ( parsed.lineA, parsed.lineB ) }
 
-        (Just "service", Just n) ->
-            Debug.todo "implement"
+                                else
+                                    -- TODO: this seems wrong..
+                                    case clearLogFocus <| StepResource step of
+                                        StepResource step_ ->
+                                            step_
 
-        _ ->
-            Debug.todo "implement"
+                                        _ ->
+                                            step
+                            )
+            }
 
-    case Maybe.withDefault "" target of
-        "step" ->
-            case stepNumber of
-                Just n ->
-                    List.map
-                        (\step ->
-                            if step.number == n then
-                                { step | viewing = True, logFocus = ( parsed.lineA, parsed.lineB ) }
+        ( Just "service", Just n ) ->
+            { buildModel
+                | services =
+                    buildModel.services
+                        |> List.map
+                            (\service ->
+                                if service.number == n then
+                                    { service | viewing = True, logFocus = ( parsed.lineA, parsed.lineB ) }
 
-                            else
-                                clearStepLogFocus step
-                        )
-                    <|
-                        steps
+                                else
+                                    -- TODO: this seems wrong
+                                    case clearLogFocus <| ServiceResource service of
+                                        ServiceResource service_ ->
+                                            service_
 
-                Nothing ->
-                    steps
-
-        _ ->
-            steps
-
-
-
-{-| updateStepLogFocus : takes steps and line focus and sets a new log line focus
--}
-updateStepLogFocus : Steps -> FocusFragment -> Steps
-updateStepLogFocus steps focusFragment =
-    let
-        parsed =
-            parseFocusFragment focusFragment
-
-        ( target, stepNumber ) =
-            ( parsed.target, parsed.targetNumber )
-    in
-    case Maybe.withDefault "" target of
-        "step" ->
-            case stepNumber of
-                Just n ->
-                    List.map
-                        (\step ->
-                            if step.number == n then
-                                { step | viewing = True, logFocus = ( parsed.lineA, parsed.lineB ) }
-
-                            else
-                                clearStepLogFocus step
-                        )
-                    <|
-                        steps
-
-                Nothing ->
-                    steps
+                                        _ ->
+                                            service
+                            )
+            }
 
         _ ->
-            steps
+            buildModel
 
 
 {-| parseFocusFragment : takes URL fragment and parses it into appropriate line focus chunks
@@ -480,14 +354,19 @@ parseFocusFragment focusFragment =
             { target = Nothing, targetNumber = Nothing, lineA = Nothing, lineB = Nothing }
 
 
-{-| clearStepLogFocus : takes step and clears all log line focus
+{-| clearLogFocus : takes resource type and clears all log line focus
 -}
-clearStepLogFocus : Step -> Step
-clearStepLogFocus step =
-    { step | logFocus = ( Nothing, Nothing ) }
+clearLogFocus : ResourceType -> ResourceType
+clearLogFocus resourceType =
+    case resourceType of
+        StepResource step ->
+            StepResource { step | logFocus = ( Nothing, Nothing ) }
+
+        ServiceResource service ->
+            ServiceResource { service | logFocus = ( Nothing, Nothing ) }
 
 
-{-| logFocusStyles : takes maybe linefocus and linenumber and returns the appropriate style for highlighting a focused line
+{-| logFocusStyles : takes linefocus and linenumber and returns the appropriate style for highlighting a focused line
 -}
 logFocusStyles : LogFocus -> Int -> String
 logFocusStyles logFocus lineNumber =
@@ -518,10 +397,11 @@ logFocusStyles logFocus lineNumber =
             ""
 
 
-{-| logFocusExists : takes steps and returns if a line or range has already been focused
+{-| logFocusExists : takes steps and services and returns if a line or range has already been focused
 -}
-logFocusExists : WebData Steps -> Bool
-logFocusExists steps =
+logFocusExists : WebData Steps -> WebData Services -> Bool
+logFocusExists steps services =
+    -- TODO: accommodate services
     (Maybe.withDefault ( Nothing, Nothing ) <|
         List.head <|
             List.map (\step -> step.logFocus) <|
@@ -557,42 +437,52 @@ toString log =
             ""
 
 
-{-| stepTopTrackerFocusId : takes step number and returns the line focus id for auto focusing on log follow
+{-| resourceTopTrackerFocusId : takes resource number and returns the line focus id for auto focusing on log follow
 -}
-stepTopTrackerFocusId : StepNumber -> String
-stepTopTrackerFocusId stepNumber =
-    "step-" ++ stepNumber ++ "-line-tracker-top"
+resourceTopTrackerFocusId : ResourceNumber -> String
+resourceTopTrackerFocusId resourceNumber =
+    let
+        prefix =
+            case resourceNumber of
+                StepNum a ->
+                    "step-" ++ a
+
+                ServiceNum a ->
+                    "service-" ++ a
+    in
+    prefix ++ "-line-tracker-top"
 
 
-{-| serviceBottomTrackerFocusId : takes service number and returns the line focus id for auto focusing on log follow
+{-| resourceBottomTrackerFocusId : takes resourced number and returns the line focus id for auto focusing on log follow
 -}
-serviceBottomTrackerFocusId : ServiceNumber -> String
-serviceBottomTrackerFocusId serviceNumber =
-    "service-" ++ serviceNumber ++ "-line-tracker-bottom"
+resourceBottomTrackerFocusId : ResourceNumber -> String
+resourceBottomTrackerFocusId resourceNumber =
+    let
+        prefix =
+            case resourceNumber of
+                StepNum a ->
+                    "step-" ++ a
 
-
-{-| stepBottomTrackerFocusId : takes step number and returns the line focus id for auto focusing on log follow
--}
-stepBottomTrackerFocusId : StepNumber -> String
-stepBottomTrackerFocusId stepNumber =
-    "step-" ++ stepNumber ++ "-line-tracker-bottom"
+                ServiceNum a ->
+                    "service-" ++ a
+    in
+    prefix ++ "-line-tracker-bottom"
 
 
 {-| getDownloadLogsFileName : takes step information and produces a filename for downloading logs
 -}
-getDownloadLogsFileName : Org -> Repo -> BuildNumber -> LogType -> String
-getDownloadLogsFileName org repo buildNumber resourceType =
-    -- TODO: change everything from itemType and LogType to resourceType, etc
+getDownloadLogsFileName : BuildModel -> ResourceNumber -> String
+getDownloadLogsFileName buildModel resourceNumber =
     let
         resource =
-            case resourceType of
-                StepLog a ->
+            case resourceNumber of
+                StepNum a ->
                     [ "step", a ]
 
-                ServiceLog a ->
+                ServiceNum a ->
                     [ "service", a ]
     in
-    String.join "-" <| [ org, repo, buildNumber ] ++ resource
+    String.join "-" <| [ buildModel.org, buildModel.repo, buildModel.buildNumber ] ++ resource
 
 
 

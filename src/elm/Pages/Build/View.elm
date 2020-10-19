@@ -45,16 +45,30 @@ import Html.Attributes
         , id
         )
 import Html.Events exposing (onClick)
-import Http exposing (Error(..))
 import List.Extra exposing (unique)
 import Pages exposing (Page(..))
-import Pages.Build.Logs exposing (LogType(..), decodeAnsi, getDownloadLogsFileName, getServiceLog, getStepLog, itemAndLineToFocusId, logEmpty, logFocusStyles, logRangeId, serviceToFocusId, stepAndLineToFocusId, stepBottomTrackerFocusId, stepToFocusId, stepTopTrackerFocusId, toString)
+import Pages.Build.Logs
+    exposing
+        ( ResourceNumber(..)
+        , ResourceType(..)
+        , decodeAnsi
+        , getDownloadLogsFileName
+        , getResourceLog
+        , logEmpty
+        , logFocusStyles
+        , logRangeId
+        , resourceAndLineToFocusId
+        , resourceBottomTrackerFocusId
+        , resourceToFocusId
+        , resourceTopTrackerFocusId
+        , toString
+        )
 import Pages.Build.Model exposing (BuildModel, Msg(..), PartialModel)
 import RemoteData exposing (WebData)
 import Routes exposing (Route(..))
 import String
 import SvgBuilder exposing (buildStatusToIcon, recentBuildStatusToIcon, stepStatusToIcon)
-import Time exposing (Posix, Zone, millisToPosix)
+import Time exposing (Posix, Zone)
 import Util
 import Vela exposing (Build, BuildNumber, Builds, Log, LogFocus, Logs, Org, Repo, Service, Services, Status, Step, StepNumber, Steps, defaultStep)
 
@@ -266,7 +280,7 @@ viewServiceDetails model buildModel service =
                 [ class "summary"
                 , Util.testAttribute <| "service-header-" ++ serviceNumber
                 , onClick <| ExpandService buildModel.org buildModel.repo buildModel.buildNumber serviceNumber
-                , id <| serviceToFocusId serviceNumber
+                , id <| resourceToFocusId <| ServiceNum serviceNumber
                 ]
                 [ div
                     [ class "-info" ]
@@ -275,7 +289,7 @@ viewServiceDetails model buildModel service =
                     ]
                 , FeatherIcons.chevronDown |> FeatherIcons.withSize 20 |> FeatherIcons.withClass "details-icon-expand" |> FeatherIcons.toHtml []
                 ]
-            , div [ class "logs-container" ] [ viewServiceLogs model buildModel service ]
+            , div [ class "logs-container" ] [ viewLogs model buildModel <| ServiceResource service ]
             ]
     in
     details
@@ -320,7 +334,7 @@ viewStepDetails model buildModel step =
                 [ class "summary"
                 , Util.testAttribute <| "step-header-" ++ stepNumber
                 , onClick <| ExpandStep buildModel.org buildModel.repo buildModel.buildNumber stepNumber
-                , id <| stepToFocusId stepNumber
+                , id <| resourceToFocusId <| StepNum stepNumber
                 ]
                 [ div
                     [ class "-info" ]
@@ -329,7 +343,7 @@ viewStepDetails model buildModel step =
                     ]
                 , FeatherIcons.chevronDown |> FeatherIcons.withSize 20 |> FeatherIcons.withClass "details-icon-expand" |> FeatherIcons.toHtml []
                 ]
-            , div [ class "logs-container" ] [ viewLogs model buildModel step ]
+            , div [ class "logs-container" ] [ viewLogs model buildModel <| StepResource step ]
             ]
     in
     details
@@ -396,46 +410,68 @@ hasStages steps =
 
 {-| viewLogs : takes step and logs and renders step logs or step error
 -}
-viewLogs : PartialModel a -> BuildModel -> Step -> Html Msg
-viewLogs model buildModel step =
-    case step.status of
-        Vela.Error ->
-            stepError step
+viewLogs : PartialModel a -> BuildModel -> ResourceType -> Html Msg
+viewLogs model buildModel resourceType =
+    case resourceType of
+        StepResource step ->
+            case step.status of
+                Vela.Error ->
+                    stepError step
 
-        Vela.Killed ->
-            stepSkipped step
+                Vela.Killed ->
+                    stepSkipped step
 
-        _ ->
-            viewLogLines buildModel.org buildModel.repo buildModel.buildNumber (String.fromInt step.number) step.logFocus (getStepLog step model.logs) model.followingStep model.shift
+                _ ->
+                    let
+                        stepNum =
+                            StepNum <| String.fromInt step.number
 
+                        resourceLog =
+                            getResourceLog (StepResource step) model.logs
+                    in
+                    viewLogLines buildModel stepNum step.logFocus resourceLog model.followingStep model.shift
 
-viewServiceLogs : PartialModel a -> BuildModel -> Service -> Html Msg
-viewServiceLogs model buildModel service =
-    case service.status of
-        Vela.Error ->
-            serviceError service
+        ServiceResource service ->
+            case service.status of
+                Vela.Error ->
+                    serviceError service
 
-        Vela.Killed ->
-            serviceSkipped service
+                Vela.Killed ->
+                    serviceSkipped service
 
-        _ ->
-            viewLogLines buildModel.org buildModel.repo buildModel.buildNumber (String.fromInt service.number) service.logFocus (getServiceLog service model.logs) model.followingService model.shift
+                _ ->
+                    let
+                        serviceNum =
+                            ServiceNum <| String.fromInt service.number
+
+                        resourceLog =
+                            getResourceLog (ServiceResource service) model.logs
+                    in
+                    viewLogLines buildModel serviceNum service.logFocus resourceLog model.followingStep model.shift
 
 
 {-| viewLogLines : takes stepnumber linefocus log and clickAction shiftDown and renders logs for a build step
 -}
-viewLogLines : Org -> Repo -> BuildNumber -> LogType -> LogFocus -> Maybe (WebData Log) -> Int -> Bool -> Html Msg
-viewLogLines org repo buildNumber itemType logFocus maybeLog following shiftDown =
+viewLogLines : BuildModel -> ResourceNumber -> LogFocus -> Maybe (WebData Log) -> Int -> Bool -> Html Msg
+viewLogLines buildModel resourceNumber logFocus maybeLog following shiftDown =
     let
         decodedLog =
             toString maybeLog
 
         fileName =
-            getDownloadLogsFileName org repo buildNumber itemType
+            getDownloadLogsFileName buildModel resourceNumber
+
+        resourceNum =
+            case resourceNumber of
+                StepNum a ->
+                    a
+
+                ServiceNum a ->
+                    a
     in
     div
         [ class "logs"
-        , Util.testAttribute <| "logs-" ++ stepNumber
+        , Util.testAttribute <| "logs-" ++ resourceNum
         ]
     <|
         case Maybe.withDefault RemoteData.NotAsked maybeLog of
@@ -446,10 +482,10 @@ viewLogLines org repo buildNumber itemType logFocus maybeLog following shiftDown
                 else
                     let
                         ( logs, numLines ) =
-                            viewLines itemType logFocus decodedLog shiftDown
+                            viewLines resourceNumber logFocus decodedLog shiftDown
                     in
-                    [ logsHeader itemType fileName decodedLog
-                    , logsSidebar itemType following numLines
+                    [ logsHeader resourceNumber fileName decodedLog
+                    , logsSidebar resourceNumber following numLines
                     , logs
                     ]
 
@@ -462,7 +498,7 @@ viewLogLines org repo buildNumber itemType logFocus maybeLog following shiftDown
 
 {-| viewLines : takes step number, line focus information and click action and renders logs
 -}
-viewLines : String -> LogFocus -> String -> Bool -> ( Html Msg, Int )
+viewLines : ResourceNumber -> LogFocus -> String -> Bool -> ( Html Msg, Int )
 viewLines number logFocus decodedLog shiftDown =
     let
         lines =
@@ -472,7 +508,7 @@ viewLines number logFocus decodedLog shiftDown =
                     |> Array.indexedMap
                         (\idx line ->
                             Just <|
-                                viewLine number
+                                viewLine
                                     (idx + 1)
                                     (Just line)
                                     number
@@ -483,7 +519,7 @@ viewLines number logFocus decodedLog shiftDown =
 
             else
                 [ Just <|
-                    viewLine number
+                    viewLine
                         1
                         Nothing
                         number
@@ -496,12 +532,20 @@ viewLines number logFocus decodedLog shiftDown =
             lines
                 |> List.filterMap identity
 
+        resourceNum =
+            case number of
+                StepNum a ->
+                    a
+
+                ServiceNum a ->
+                    a
+
         topTracker =
             tr [ class "line", class "tracker" ]
                 [ a
                     [ id <|
-                        stepTopTrackerFocusId number
-                    , Util.testAttribute <| "top-log-tracker-" ++ number
+                        resourceTopTrackerFocusId number
+                    , Util.testAttribute <| "top-log-tracker-" ++ resourceNum
                     , Html.Attributes.tabindex -1
                     ]
                     []
@@ -511,8 +555,8 @@ viewLines number logFocus decodedLog shiftDown =
             tr [ class "line", class "tracker" ]
                 [ a
                     [ id <|
-                        stepBottomTrackerFocusId number
-                    , Util.testAttribute <| "bottom-log-tracker-" ++ number
+                        resourceBottomTrackerFocusId number
+                    , Util.testAttribute <| "bottom-log-tracker-" ++ resourceNum
                     , Html.Attributes.tabindex -1
                     ]
                     []
@@ -528,20 +572,20 @@ viewLines number logFocus decodedLog shiftDown =
 
 {-| viewLine : takes log line and focus information and renders line number button and log
 -}
-viewLine : String -> Int -> Maybe Ansi.Log.Line -> LogType -> LogFocus -> Bool -> Html Msg
-viewLine id lineNumber line itemType logFocus shiftDown =
+viewLine : Int -> Maybe Ansi.Log.Line -> ResourceNumber -> LogFocus -> Bool -> Html Msg
+viewLine lineNumber line resourceNumber logFocus shiftDown =
     let
         itemNum =
-            case itemType of
-                StepLog a ->
+            case resourceNumber of
+                StepNum a ->
                     a
 
-                ServiceLog a ->
+                ServiceNum a ->
                     a
     in
     tr
         [ Html.Attributes.id <|
-            id
+            itemNum
                 ++ ":"
                 ++ String.fromInt lineNumber
         , class "line"
@@ -554,7 +598,7 @@ viewLine id lineNumber line itemType logFocus shiftDown =
                     , class <| logFocusStyles logFocus lineNumber
                     ]
                     [ td []
-                        [ lineFocusButton itemType logFocus lineNumber shiftDown ]
+                        [ lineFocusButton resourceNumber logFocus lineNumber shiftDown ]
                     , td [ class "break-text", class "overflow-auto" ]
                         [ code [ Util.testAttribute <| String.join "-" [ "log", "data", itemNum, String.fromInt lineNumber ] ]
                             [ Ansi.Log.viewLine l
@@ -569,15 +613,15 @@ viewLine id lineNumber line itemType logFocus shiftDown =
 
 {-| lineFocusButton : renders button for focusing log line ranges
 -}
-lineFocusButton : LogType -> LogFocus -> Int -> Bool -> Html Msg
+lineFocusButton : ResourceNumber -> LogFocus -> Int -> Bool -> Html Msg
 lineFocusButton itemNumber logFocus lineNumber shiftDown =
     let
         ( itemType, itemNum ) =
             case itemNumber of
-                StepLog a ->
+                StepNum a ->
                     ( "step", a )
 
-                ServiceLog a ->
+                ServiceNum a ->
                     ( "service", a )
     in
     button
@@ -585,7 +629,7 @@ lineFocusButton itemNumber logFocus lineNumber shiftDown =
             FocusLogs <|
                 logRangeId itemNumber lineNumber logFocus shiftDown
         , Util.testAttribute <| String.join "-" [ "log", "line", "num", itemNum, String.fromInt lineNumber ]
-        , id <| itemAndLineToFocusId itemNumber lineNumber
+        , id <| resourceAndLineToFocusId itemNumber lineNumber
         , class "line-number"
         , class "button"
         , class "-link"
@@ -622,8 +666,17 @@ expandAllStepsButton org repo buildNumber =
 
 {-| logsHeader : takes step number, filename and decoded log and renders logs header
 -}
-logsHeader : String -> String -> String -> Html Msg
-logsHeader number fileName decodedLog =
+logsHeader : ResourceNumber -> String -> String -> Html Msg
+logsHeader resourceNumber fileName decodedLog =
+    let
+        number =
+            case resourceNumber of
+                StepNum a ->
+                    a
+
+                ServiceNum a ->
+                    a
+    in
     div [ class "buttons", class "logs-header" ]
         [ div
             [ class "line", class "actions" ]
@@ -632,18 +685,26 @@ logsHeader number fileName decodedLog =
                 , class "buttons"
                 , Util.testAttribute <| "logs-header-actions-" ++ number
                 ]
-                [ downloadLogsButton number fileName decodedLog ]
+                [ downloadLogsButton resourceNumber fileName decodedLog ]
             ]
         ]
 
 
 {-| logsSidebar : takes step number/following and renders the logs sidebar
 -}
-logsSidebar : String -> Int -> Int -> Html Msg
-logsSidebar number following numLines =
+logsSidebar : ResourceNumber -> Int -> Int -> Html Msg
+logsSidebar resourceNumber following numLines =
     let
         long =
             numLines > 25
+
+        number =
+            case resourceNumber of
+                StepNum a ->
+                    a
+
+                ServiceNum a ->
+                    a
     in
     div [ class "logs-sidebar" ]
         [ div [ class "inner-container" ]
@@ -653,90 +714,122 @@ logsSidebar number following numLines =
                 ]
               <|
                 (if long then
-                    [ jumpToTopButton number
-                    , jumpToBottomButton number
+                    [ jumpToTopButton resourceNumber
+                    , jumpToBottomButton resourceNumber
                     ]
 
                  else
                     []
                 )
-                    ++ [ stepFollowButton number following ]
+                    ++ [ logFollowButton resourceNumber following ]
             ]
         ]
 
 
 {-| jumpToBottomButton : renders action button for jumping to the bottom of a step log
 -}
-jumpToBottomButton : StepNumber -> Html Msg
-jumpToBottomButton stepNumber =
+jumpToBottomButton : ResourceNumber -> Html Msg
+jumpToBottomButton resourceNumber =
+    let
+        ( resourceNum, resourceType ) =
+            case resourceNumber of
+                StepNum a ->
+                    ( a, "step" )
+
+                ServiceNum a ->
+                    ( a, "service" )
+    in
     button
         [ class "button"
         , class "-icon"
         , class "tooltip-left"
         , attribute "data-tooltip" "jump to bottom"
-        , Util.testAttribute <| "jump-to-bottom-" ++ stepNumber
-        , onClick <| FocusOn <| stepBottomTrackerFocusId stepNumber
-        , attribute "aria-label" <| "jump to bottom of logs for step " ++ stepNumber
+        , Util.testAttribute <| "jump-to-bottom-" ++ resourceNum
+        , onClick <| FocusOn <| resourceBottomTrackerFocusId resourceNumber
+        , attribute "aria-label" <| "jump to bottom of logs for " ++ resourceType ++ " " ++ resourceNum
         ]
         [ FeatherIcons.arrowDown |> FeatherIcons.toHtml [ attribute "role" "img" ] ]
 
 
 {-| jumpToTopButton : renders action button for jumping to the top of a step log
 -}
-jumpToTopButton : StepNumber -> Html Msg
-jumpToTopButton stepNumber =
+jumpToTopButton : ResourceNumber -> Html Msg
+jumpToTopButton resourceNumber =
+    let
+        ( resourceNum, resourceType ) =
+            case resourceNumber of
+                StepNum a ->
+                    ( a, "step" )
+
+                ServiceNum a ->
+                    ( a, "service" )
+    in
     button
         [ class "button"
         , class "-icon"
         , class "tooltip-left"
         , attribute "data-tooltip" "jump to top"
-        , Util.testAttribute <| "jump-to-top-" ++ stepNumber
-        , onClick <| FocusOn <| stepTopTrackerFocusId stepNumber
-        , attribute "aria-label" <| "jump to top of logs for step " ++ stepNumber
+        , Util.testAttribute <| "jump-to-top-" ++ resourceNum
+        , onClick <| FocusOn <| resourceTopTrackerFocusId resourceNumber
+        , attribute "aria-label" <| "jump to top of logs for " ++ resourceType ++ " " ++ resourceNum
         ]
         [ FeatherIcons.arrowUp |> FeatherIcons.toHtml [ attribute "role" "img" ] ]
 
 
 {-| downloadLogsButton : renders action button for downloading a step log
 -}
-downloadLogsButton : String -> String -> String -> Html Msg
-downloadLogsButton number fileName logs =
+downloadLogsButton : ResourceNumber -> String -> String -> Html Msg
+downloadLogsButton resourceNumber fileName logs =
+    let
+        ( resourceNum, resourceType ) =
+            case resourceNumber of
+                StepNum a ->
+                    ( a, "step" )
+
+                ServiceNum a ->
+                    ( a, "service" )
+    in
     button
         [ class "button"
         , class "-link"
-        , Util.testAttribute <| "download-logs-" ++ number
+        , Util.testAttribute <| "download-logs-" ++ resourceNum
         , onClick <| DownloadLogs fileName logs
-        , attribute "aria-label" <| "download logs for step " ++ number
+        , attribute "aria-label" <| "download logs for " ++ resourceType ++ " " ++ resourceNum
         ]
-        [ text "download logs for this step" ]
+        [ text <| "download logs for this " ++ resourceType ]
 
 
 {-| stepFollowButton : renders button for following step logs
 -}
-stepFollowButton : StepNumber -> Int -> Html Msg
-stepFollowButton stepNumber following =
+logFollowButton : ResourceNumber -> Int -> Html Msg
+logFollowButton resourceNumber following =
     let
-        stepNum =
-            Maybe.withDefault 0 <| String.toInt stepNumber
+        ( resourceInt, resourceNum, resourceType ) =
+            case resourceNumber of
+                StepNum a ->
+                    ( Maybe.withDefault 0 <| String.toInt a, a, "step" )
+
+                ServiceNum a ->
+                    ( Maybe.withDefault 0 <| String.toInt a, a, "service" )
 
         ( tooltip, icon, toFollow ) =
             if following == 0 then
-                ( "start following step logs", FeatherIcons.play, stepNum )
+                ( "start following " ++ resourceType ++ " logs", FeatherIcons.play, resourceInt )
 
-            else if following == (Maybe.withDefault 0 <| String.toInt stepNumber) then
-                ( "stop following step logs", FeatherIcons.pause, 0 )
+            else if following == resourceInt then
+                ( "stop following " ++ resourceType ++ " logs", FeatherIcons.pause, 0 )
 
             else
-                ( "start following step logs", FeatherIcons.play, stepNum )
+                ( "start following " ++ resourceType ++ " logs", FeatherIcons.play, resourceInt )
     in
     button
         [ class "button"
         , class "-icon"
         , class "tooltip-left"
         , attribute "data-tooltip" tooltip
-        , Util.testAttribute <| "follow-logs-" ++ stepNumber
-        , onClick <| FollowStep toFollow
-        , attribute "aria-label" <| tooltip ++ " for step " ++ stepNumber
+        , Util.testAttribute <| "follow-logs-" ++ resourceNum
+        , onClick <| FollowStep toFollow -- TODO: fix this
+        , attribute "aria-label" <| tooltip ++ " for " ++ resourceType ++ " " ++ resourceNum
         ]
         [ icon |> FeatherIcons.toHtml [ attribute "role" "img" ] ]
 
