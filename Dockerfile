@@ -11,6 +11,6 @@ COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY docker-entrypoint.sh /usr/local/bin
 RUN ln -s /usr/local/bin/docker-entrypoint.sh /
 ENTRYPOINT ["docker-entrypoint.sh"]
-
+# "localchange"
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
